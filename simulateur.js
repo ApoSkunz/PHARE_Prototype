@@ -1086,8 +1086,13 @@
   function fromHash() {
     var h = (window.location.hash || '').replace(/^#/, '');
     if (!h) return;
-    var q = {};
-    h.split('&').forEach(function (kv) { var x = kv.split('='); q[x[0]] = decodeURIComponent(x[1] || ''); });
+    /* Seules les clés connues sont lues, dans un objet sans prototype : le nom d'une propriété ne vient jamais de l'URL sans contrôle. */
+    var q = Object.create(null), KEYS = ['s', 'i', 'e', 'c', 'stack', 'tk', 'cap', 'pol', 'f', 'tab', 'key', 'estop'];
+    h.split('&').forEach(function (kv) {
+      var x = kv.split('=');
+      if (KEYS.indexOf(x[0]) < 0) return;
+      try { q[x[0]] = decodeURIComponent(x[1] || ''); } catch (err) { q[x[0]] = ''; }
+    });
     var p = st.params;
     if (q.c && CLASSES[q.c]) p.cls = q.c;
     if (q.stack && STACKS[q.stack]) p.stack = q.stack;

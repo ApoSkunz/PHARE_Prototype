@@ -8,6 +8,8 @@
   D.nodes.forEach(function (n) { nodesById[n.id] = n; });
 
   var scenarioKey = 'creation';
+  /* Scénario de cette vue -> scénario équivalent du simulateur (table fixe : l'adresse n'est jamais construite à partir d'une valeur saisie) */
+  var SIM_PRESET = { creation: 'creation', feature: 'feature', campagne: 'campagne' };
   var stepIndex = 0;
   var playing = false;
   var speed = 1;
@@ -82,7 +84,7 @@
       });
     }
     var title = el('title', {}, g);
-    title.textContent = n.label + (n.sub ? ' : ' + n.sub.replace('\n', ' ') : '');
+    title.textContent = n.label + (n.sub ? ' : ' + n.sub.split('\n').join(' ') : '');
     nodeEls[n.id] = g;
   });
 
@@ -171,7 +173,8 @@
     panel.title.textContent = step.title;
     panel.count.textContent = 'Étape ' + (stepIndex + 1) + ' sur ' + list.length + ' · ' + D.scenarios[scenarioKey].name;
     var toSim = document.getElementById('to-sim');
-    if (toSim) toSim.href = 'simulateur.html#s=' + scenarioKey;
+    var simPreset = Object.prototype.hasOwnProperty.call(SIM_PRESET, scenarioKey) ? SIM_PRESET[scenarioKey] : null;
+    if (toSim && simPreset) toSim.href = 'simulateur.html#s=' + simPreset;
     var toUsine = document.getElementById('to-usine');
     if (toUsine) toUsine.href = 'usine.html#t=' + [2, 12, 22, 32, 35, 50, 66, 80, 88][step.state];
     panel.who.textContent = '';
