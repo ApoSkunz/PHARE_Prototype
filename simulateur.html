@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHARE — simulateur de l'usine</title>
+<link rel="stylesheet" href="nav.css">
+<link rel="stylesheet" href="simulateur.css">
+</head>
+<body>
+<nav class="viewnav" aria-label="Vues du prototype">
+  <a href="simulateur.html" aria-current="page"><b>Simulateur</b><span>jouer des scénarios et des pannes</span></a>
+  <a href="usine.html"><b>Chaîne de production</b><span>visite guidée</span></a>
+  <a href="index.html"><b>Vue technique</b><span>acteurs, dépendances, contrôles</span></a>
+  <span class="spacer"></span>
+  <span class="hint">Les trois vues décrivent le même PHARE</span>
+</nav>
+<header class="top">
+  <div class="brand">
+    <h1>PHARE</h1>
+    <p class="acro"><b>P</b>lateforme <b>H</b>ybride <b>A</b>gentique de <b>R</b>éalisation <b>E</b>ncadrée</p>
+    <p id="run-line">Usine logicielle sous contrôle : orchestrateur déterministe, contrôles, humains aux points de décision</p>
+  </div>
+  <div class="kpis" aria-label="Compteurs de la simulation">
+    <div><span id="k-ok">0</span><small>demandes de fusion livrées</small></div>
+    <div><span id="k-ko">0</span><small>fabrications refusées ou arrêtées</small></div>
+    <div><span id="k-h">0</span><small>décisions humaines</small></div>
+    <div><span id="k-g">0</span><small>contrôles franchis</small></div>
+  </div>
+</header>
+
+<div class="layout">
+  <section class="stage">
+    <div class="scene">
+      <svg id="map" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Synoptique de l'usine PHARE : orchestrateur au centre, huit modules autour"></svg>
+      <div id="estop-banner" class="estop-banner" hidden>
+        <strong>ARRÊT D'URGENCE ENGAGÉ</strong>
+        <span>Fabrications gelées · cellules détruites · clés temporaires révoquées · lancements interdits</span>
+      </div>
+    </div>
+    <div class="caption" id="caption" aria-live="polite"></div>
+    <div class="transport">
+      <button id="prev" type="button" class="btn">Étape précédente</button>
+      <button id="play" type="button" class="btn" aria-label="Lecture ou pause">Pause</button>
+      <button id="next" type="button" class="btn">Étape suivante</button>
+      <label class="chk"><input id="stepmode" type="checkbox"> Pas à pas</label>
+      <span class="speed" role="group" aria-label="Vitesse">
+        <button type="button" class="btn small on" data-speed="1">×1</button>
+        <button type="button" class="btn small" data-speed="2">×2</button>
+        <button type="button" class="btn small" data-speed="4">×4</button>
+      </span>
+      <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Position dans le scénario">
+      <span id="clock" class="clock">T+00:00</span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="console" aria-label="Pupitre d'arrêt d'urgence">
+      <div class="estop-plate">
+        <small>ARRÊT D'URGENCE</small>
+        <div class="estop-well"><button id="estop" type="button" class="estop-cap" aria-label="Arrêt d'urgence"></button></div>
+        <small>EMERGENCY STOP</small>
+      </div>
+      <div class="console-info">
+        <div id="lamp" class="lamp ok">EN SERVICE</div>
+        <p id="estop-text">Réservé au RSSI ou à son adjoint. Appuyer pour geler l'usine.</p>
+        <div class="console-actions">
+          <button id="release" type="button" class="btn small" hidden>Déverrouiller (tourner)</button>
+          <button id="ack" type="button" class="btn small warn" hidden>Acquitter et redémarrer</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="tab on" data-pane="p-scen">Scénarios</button>
+      <button type="button" role="tab" class="tab" data-pane="p-params">Entrées</button>
+      <button type="button" role="tab" class="tab" data-pane="p-humans">Humains</button>
+      <button type="button" role="tab" class="tab" data-pane="p-orch">Orchestration</button>
+      <button type="button" role="tab" class="tab" data-pane="p-log">Journal</button>
+      <button type="button" role="tab" class="tab" data-pane="p-info">Détail</button>
+      <button type="button" role="tab" class="tab" data-pane="p-gloss">Mots</button>
+    </div>
+
+    <div id="p-scen" class="pane">
+      <h2>Scénarios prêts à jouer</h2>
+      <div id="scen-list" class="scen-list"></div>
+      <label class="chk"><input id="demo" type="checkbox" checked> Démo automatique : 5 scénarios à la suite, puis arrêt (stand)</label>
+      <label class="chk"><input id="autohuman" type="checkbox" checked> Humains simulés (valident seuls après 1,5 s)</label>
+      <p class="note">Un scénario règle les entrées de l'onglet « Entrées » ; tu peux ensuite les modifier et relancer. Simulation illustrative : aucune valeur n'est mesurée. Source de vérité : <code>docs/conception/</code> et les ADR.</p>
+    </div>
+
+    <div id="p-params" class="pane" hidden>
+      <h2>Entrées de la fabrication</h2>
+      <div id="params"></div>
+      <button id="launch" type="button" class="btn go launch">Lancer avec ces entrées</button>
+      <p id="derived" class="note"></p>
+    </div>
+
+    <div id="p-humans" class="pane" hidden>
+      <h2>Qui décide quoi</h2>
+      <div id="roster" class="roster"></div>
+      <h2>Décisions humaines de cette fabrication</h2>
+      <ol id="decisions" class="decisions"></ol>
+    </div>
+
+    <div id="p-orch" class="pane" hidden>
+      <h2>Orchestrateur déterministe</h2>
+      <p class="note">Le workflow est une machine à états : mêmes entrées, mêmes états, mêmes contrôles, mêmes outils. Seul le contenu produit par les modèles varie.</p>
+      <div id="trans" class="trans"></div>
+      <h2>Rejeu</h2>
+      <p class="note">Même entrées, même chemin d'état. Le contenu généré, lui, peut différer d'une fabrication à l'autre.</p>
+      <button id="replay" type="button" class="btn small">Rejouer avec les mêmes entrées</button>
+      <div id="replays" class="replays"></div>
+      <h2>Ce que le modèle ne décide jamais</h2>
+      <ul class="plain">
+        <li>L'enchaînement des états et les conditions de transition.</li>
+        <li>Les outils disponibles, les droits et le budget (autorité statique, hors bande).</li>
+        <li>Le routage vers un modèle selon la classe du projet.</li>
+        <li>Le go, l'approbation de la MR, l'arrêt d'urgence : toujours un humain.</li>
+      </ul>
+    </div>
+
+    <div id="p-log" class="pane" hidden>
+      <h2>Journal d'audit (simulé)</h2>
+      <ol id="log" class="log"></ol>
+    </div>
+
+
+    <div id="p-gloss" class="pane" hidden>
+      <h2>Les mots, simplement</h2>
+      <dl class="gloss">
+        <dt>Modèle d'IA</dt><dd>Le moteur de langage qui lit et écrit du texte et du code (exemples : Claude, Gemini, Codex, Mistral, Kimi). Il reste <b>hors de la cellule</b>. PHARE n'est lié à aucun d'eux.</dd>
+        <dt>Agent</dt><dd>Programme qui utilise un modèle pour agir : lire des fichiers, lancer des tests, écrire du code. Il travaille <b>dans la cellule</b>.</dd>
+        <dt>Cellule isolée (sandbox)</dt><dd>Espace fermé où l'agent travaille. Pas d'internet libre, quel que soit le niveau de confidentialité. Deux niveaux de blindage : N2, et N3 pour les projets très confidentiels.</dd>
+        <dt>Passerelle</dt><dd>Le seul passage de la cellule vers le modèle : surveillée, avec une clé temporaire plafonnée. Niveaux C0 à C2 : modèle cloud ou interne. Niveau C3 : modèles internes seulement.</dd>
+        <dt>Recherche côté fournisseur</dt><dd>Certains fournisseurs savent, une fois la requête reçue, chercher sur le web ou exécuter du code depuis leurs propres serveurs : la cellule ne le voit pas. PHARE <b>refuse</b> ces options : la passerelle rejette toute requête qui les demande. Le modèle répond avec ce qu'il a reçu.</dd>
+        <dt>Niveau de confidentialité (C0 à C3)</dt><dd>Fixé par projet, jamais abaissé automatiquement. Il décide des modèles permis, du blindage de la cellule et du nombre d'approbateurs.</dd>
+        <dt>Contrôle d'entrée (préflight)</dt><dd>Vérification du dossier avant toute fabrication : complet, sain, données sensibles, niveau, droits.</dd>
+        <dt>Dossier figé et signé (snapshot)</dt><dd>Version exacte de ce qui sera fabriqué (tickets, maquettes, plan). Le go du chef de projet est lié à elle.</dd>
+        <dt>Fabrication (run)</dt><dd>Une exécution complète de l'usine, du go à la demande de fusion.</dd>
+        <dt>Banc d'essai (mutation)</dt><dd>On introduit volontairement de petits défauts dans le code pour vérifier que les tests les détectent. Des tests qui ne voient rien ne prouvent rien.</dd>
+        <dt>Analyse de sécurité (SAST)</dt><dd>Lecture automatique du code à la recherche de failles connues.</dd>
+        <dt>Dans le doute, on s'arrête (fail-closed)</dt><dd>Sans autorisation claire, l'usine refuse. Elle ne continue jamais par défaut.</dd>
+        <dt>Demande de fusion (MR)</dt><dd>Proposition de changement soumise dans GitLab, avec son dossier de preuves. Un ingénieur la relit et l'approuve.</dd>
+        <dt>Escalade</dt><dd>L'usine ne peut plus avancer seule : elle appelle l'équipe plateforme (le « mécanicien »), qui diagnostique, relance ou arrête.</dd>
+        <dt>Règles communes (skills)</dt><dd>Bibliothèque signée de consignes : connexion SSO (SAML / OIDC), règles IA, design system, règles du langage du projet.</dd>
+        <dt>Arrêt d'urgence (kill switch)</dt><dd>Bouton du RSSI ou de son adjoint : tout est gelé, les cellules détruites, les clés révoquées.</dd>
+      </dl>
+    </div>
+
+    <div id="p-info" class="pane" hidden>
+      <h2 id="i-title">Composant</h2>
+      <p id="i-what" class="note">Clique sur un module du synoptique pour le détailler.</p>
+      <h3>Humains</h3>
+      <p id="i-human"></p>
+      <h3>Sous le capot</h3>
+      <p id="i-tech"></p>
+      <p class="xlinks"><a id="x-usine" href="usine.html">Voir cette étape dans la chaîne de production</a><br><a id="x-tech" href="index.html">Voir cette étape dans la vue technique</a></p>
+    </div>
+  </aside>
+</div>
+
+<script src="simulateur.js"></script>
+</body>
+</html>

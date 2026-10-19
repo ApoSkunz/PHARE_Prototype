@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHARE — schéma animé du mode usine</title>
+<link rel="stylesheet" href="nav.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="viewnav" aria-label="Vues du prototype">
+  <a href="simulateur.html"><b>Simulateur</b><span>jouer des scénarios et des pannes</span></a>
+  <a href="usine.html"><b>Chaîne de production</b><span>visite guidée</span></a>
+  <a href="index.html" aria-current="page"><b>Vue technique</b><span>acteurs, dépendances, contrôles</span></a>
+  <span class="spacer"></span>
+  <span class="hint">Les trois vues décrivent le même PHARE</span>
+</nav>
+<header>
+  <div>
+    <h1>PHARE — mode usine</h1>
+    <p class="acro"><b>P</b>lateforme <b>H</b>ybride <b>A</b>gentique de <b>R</b>éalisation <b>E</b>ncadrée</p>
+    <p>Schéma animé : flux, dépendances techniques et interventions humaines. Aligné sur les ADR 0001 à 0006. Prototype 2D, sans exécution.</p>
+  </div>
+  <div class="controls">
+    <label>Scénario <select id="scenario" aria-label="Scénario"></select></label>
+    <button id="prev" type="button">Précédent</button>
+    <button id="play" type="button" class="primary">Lecture</button>
+    <button id="next" type="button">Suivant</button>
+    <label>Vitesse
+      <select id="speed" aria-label="Vitesse">
+        <option value="0.5">0,5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<div class="layers" aria-label="Couches affichées">
+  <strong>Couches :</strong>
+  <label><input type="checkbox" data-layer="human" checked><span class="swatch" style="border-color:var(--human);background:var(--human-bg)"></span> Humains</label>
+  <label><input type="checkbox" data-layer="system" checked><span class="swatch" style="border-color:var(--system);background:var(--system-bg)"></span> Systèmes PHARE</label>
+  <label><input type="checkbox" data-layer="guard" checked><span class="swatch" style="border-color:var(--guard);background:var(--guard-bg)"></span> Gardes</label>
+  <label><input type="checkbox" data-layer="external" checked><span class="swatch" style="border-color:var(--external);background:var(--external-bg)"></span> Dépendances externes</label>
+  <label><input type="checkbox" data-layer="data" checked><span class="swatch" style="border-color:var(--data);background:var(--data-bg)"></span> Preuves</label>
+  <label><input type="checkbox" data-layer="transverse" checked><span class="swatch" style="border-color:var(--transverse);background:var(--transverse-bg)"></span> Transverses</label>
+</div>
+
+<div class="states" id="states" aria-label="États du cycle de vie"></div>
+
+<main>
+  <div class="stage">
+    <svg id="canvas" viewBox="0 0 1370 690" role="img" aria-label="Schéma du fonctionnement de PHARE"></svg>
+  </div>
+  <aside class="side">
+    <div id="step-count" class="hint"></div>
+    <h2 id="step-title"></h2>
+    <div id="step-who"></div>
+    <p><a id="to-sim" class="xlink" href="simulateur.html">Rejouer ce scénario dans le simulateur</a><br><a id="to-usine" class="xlink" href="usine.html">Voir cette étape dans la chaîne de production</a></p>
+    <p id="step-text"></p>
+    <h3>Dépendances techniques</h3>
+    <ul id="step-deps"></ul>
+    <h3>Contrôles</h3>
+    <ul id="step-ctrl"></ul>
+    <h3>Étapes</h3>
+    <div class="steps" id="step-list"></div>
+    <p class="hint">Raccourcis : flèches gauche et droite, barre d'espace pour la lecture.</p>
+  </aside>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

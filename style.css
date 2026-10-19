@@ -1,0 +1,93 @@
+:root {
+  --bg: #f5f6fa;
+  --panel: #ffffff;
+  --ink: #1f2430;
+  --muted: #5f6b7a;
+  --line: #9aa3b2;
+  --human: #e8590c;
+  --human-bg: #fff4e6;
+  --system: #5f3dc4;
+  --system-bg: #f3f0ff;
+  --guard: #c92a2a;
+  --guard-bg: #fff0f0;
+  --external: #0b7285;
+  --external-bg: #e6fcf5;
+  --data: #1864ab;
+  --data-bg: #e7f5ff;
+  --transverse: #495057;
+  --transverse-bg: #f1f3f5;
+  --active: #f59f00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151c; --panel: #1b2029; --ink: #e8ebf2; --muted: #9aa5b5; --line: #6b7587;
+    --human-bg: #3a2414; --system-bg: #24204a; --guard-bg: #3a1818; --external-bg: #12302c; --data-bg: #14283f; --transverse-bg: #262b34;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { margin: 0; font-size: 18px; }
+header p { margin: 0; color: var(--muted); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+button, select { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
+button:hover, select:hover { border-color: var(--active); }
+button.primary { background: var(--system); color: #fff; border-color: var(--system); }
+.layers { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 20px; border-bottom: 1px solid var(--line); background: var(--panel); font-size: 13px; }
+.layers label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; display: inline-block; }
+.states { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.state { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.state.past { background: var(--system-bg); color: var(--system); border-color: var(--system); }
+.state.current { background: var(--active); color: #1f2430; border-color: var(--active); font-weight: 600; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 20px; }
+@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: auto; }
+svg { display: block; width: 100%; height: auto; min-width: 900px; }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; align-self: start; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.side h2 { margin: 0 0 6px; font-size: 16px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin: 0 6px 6px 0; border: 1px solid var(--line); }
+.badge.human { background: var(--human-bg); color: var(--human); border-color: var(--human); font-weight: 600; }
+.badge.auto { background: var(--system-bg); color: var(--system); border-color: var(--system); }
+.side h3 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.side ul { margin: 0; padding-left: 18px; }
+.steps { margin-top: 16px; display: grid; gap: 4px; }
+.steps button { text-align: left; padding: 6px 10px; font-size: 13px; }
+.steps button.on { border-color: var(--active); background: var(--active); color: #1f2430; font-weight: 600; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+.xlink { color: var(--system); font-weight: 700; text-decoration: none; }
+.xlink:hover { text-decoration: underline; }
+
+/* SVG */
+.node rect { stroke-width: 2; rx: 8; transition: opacity .25s, filter .25s; }
+.node text { fill: var(--ink); font-size: 13px; pointer-events: none; }
+.node .sub { fill: var(--muted); font-size: 11.5px; }
+.node.k-human rect { fill: var(--human-bg); stroke: var(--human); }
+.node.k-system rect { fill: var(--system-bg); stroke: var(--system); }
+.node.k-guard rect { fill: var(--guard-bg); stroke: var(--guard); }
+.node.k-external rect { fill: var(--external-bg); stroke: var(--external); }
+.node.k-data rect { fill: var(--data-bg); stroke: var(--data); }
+.node.k-transverse rect { fill: var(--transverse-bg); stroke: var(--transverse); stroke-dasharray: 4 3; }
+.node.k-container rect { fill: none; stroke: var(--line); stroke-dasharray: 6 4; }
+.node.k-container text { fill: var(--muted); font-weight: 600; }
+.edge { fill: none; stroke: var(--line); stroke-width: 1.5; opacity: .55; }
+.edge.dashed { stroke-dasharray: 5 4; }
+.edge-label { fill: var(--ink); font-size: 12px; font-weight: 600; opacity: 0; transition: opacity .2s; paint-order: stroke; stroke: var(--panel); stroke-width: 5px; stroke-linejoin: round; }
+svg.has-active .node { opacity: .28; }
+svg.has-active .node.active { opacity: 1; }
+svg.has-active .node.active rect { filter: drop-shadow(0 0 6px var(--active)); stroke: var(--active); }
+svg.has-active .node.k-container.active rect { filter: none; }
+svg.has-active .node.k-container { opacity: .6; }
+svg.has-active .edge { opacity: .12; }
+svg.has-active .edge.active { opacity: 1; stroke: var(--active); stroke-width: 2.5; }
+svg.has-active .edge-label.active { opacity: 1; }
+.node.k-human.active rect { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { stroke-width: 2; } 50% { stroke-width: 5; } }
+.dot { fill: var(--active); stroke: #fff; stroke-width: 1.5; }
+svg.hide-human .node.k-human, svg.hide-system .node.k-system, svg.hide-guard .node.k-guard,
+svg.hide-external .node.k-external, svg.hide-data .node.k-data, svg.hide-transverse .node.k-transverse { display: none; }
+svg.hide-human .edge.f-human, svg.hide-system .edge.f-system, svg.hide-guard .edge.f-guard,
+svg.hide-external .edge.f-external, svg.hide-data .edge.f-data, svg.hide-transverse .edge.f-transverse { display: none; }
+@media (prefers-reduced-motion: reduce) { .node.k-human.active rect { animation: none; } }
+
+header p.acro b { color: var(--system); font-weight: 800; }
