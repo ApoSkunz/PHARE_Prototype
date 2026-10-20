@@ -13,7 +13,7 @@
   var stepIndex = 0;
   var playing = false;
   var speed = 1;
-  var stepStart = 0;
+  var stepElapsed = 0;   /* temps de lecture écoulé dans l'étape courante, en ms à vitesse ×1 */
   var dots = [];
   var STEP_MS = 7000;
 
@@ -109,19 +109,24 @@
   var stateStrip = $('states');
   var panel = {
     title: $('step-title'), who: $('step-who'), text: $('step-text'),
-    deps: $('step-deps'), ctrl: $('step-ctrl'), count: $('step-count'), list: $('step-list'),
+    deps: $('step-deps'), ctrl: $('step-ctrl'), count: $('step-count'),
   };
 
   function steps() { return D.scenarios[scenarioKey].steps; }
 
+  var phases = PharePlayer.phases(stateStrip, D.states, function (i) {
+    var idx = firstStepOf(i);
+    if (idx >= 0) go(idx);
+  });
+  function firstStepOf(state) {
+    var list = steps();
+    for (var i = 0; i < list.length; i++) if (list[i].state === state) return i;
+    return -1;
+  }
+  /* Avant le lancement (en pause sur la première étape) : vue d'ensemble neutre, aucun élément en surbrillance */
+  var idleNow = true;
   function renderStates(current) {
-    stateStrip.textContent = '';
-    D.states.forEach(function (s, i) {
-      var d = document.createElement('span');
-      d.className = 'state' + (i < current ? ' past' : '') + (i === current ? ' current' : '');
-      d.textContent = s;
-      stateStrip.appendChild(d);
-    });
+    phases.paint(current, D.states.map(function (n, i) { return firstStepOf(i) >= 0; }), idleNow);
   }
 
   function fillList(ul, items) {
@@ -130,18 +135,6 @@
       var li = document.createElement('li');
       li.textContent = t;
       ul.appendChild(li);
-    });
-  }
-
-  function renderList() {
-    panel.list.textContent = '';
-    steps().forEach(function (s, i) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = (i + 1) + '. ' + s.title;
-      if (i === stepIndex) b.className = 'on';
-      b.addEventListener('click', function () { go(i); });
-      panel.list.appendChild(b);
     });
   }
 
@@ -156,11 +149,12 @@
     });
   }
 
-  function apply() {
+  function apply(keepElapsed) {
     var list = steps();
     stepIndex = Math.max(0, Math.min(list.length - 1, stepIndex));
     var step = list[stepIndex];
-    svg.classList.add('has-active');
+    svg.classList.toggle('has-active', !idleNow);
+    svg.classList.toggle('is-idle', idleNow);
     var activeNodes = {};
     step.nodes.forEach(function (id) { activeNodes[id] = true; });
     D.edges.forEach(function (e) {
@@ -176,7 +170,7 @@
     var simPreset = Object.prototype.hasOwnProperty.call(SIM_PRESET, scenarioKey) ? SIM_PRESET[scenarioKey] : null;
     if (toSim && simPreset) toSim.href = 'simulateur.html#s=' + simPreset;
     var toUsine = document.getElementById('to-usine');
-    if (toUsine) toUsine.href = 'usine.html#t=' + [2, 12, 22, 32, 35, 50, 66, 80, 88][step.state];
+    if (toUsine) toUsine.href = 'index.html#t=' + [2, 12, 22, 32, 35, 50, 66, 80, 88][step.state];
     panel.who.textContent = '';
     var kind = document.createElement('span');
     kind.className = 'badge ' + (step.human ? 'human' : 'auto');
@@ -191,73 +185,81 @@
     panel.text.textContent = step.text;
     fillList(panel.deps, step.deps);
     fillList(panel.ctrl, step.ctrl);
-    renderList();
     buildDots(step);
-    stepStart = performance.now();
+    if (!keepElapsed) stepElapsed = 0;
     $('prev').disabled = stepIndex === 0;
     $('next').disabled = stepIndex === list.length - 1;
   }
 
   function go(i) { stepIndex = i; apply(); }
 
-  function setPlaying(p) {
-    playing = p;
-    $('play').textContent = p ? 'Pause' : 'Lecture';
-    stepStart = performance.now();
-  }
+  function setPlaying(p) { playing = p; }
 
+  function atEnd() { return stepIndex === steps().length - 1 && stepElapsed >= STEP_MS; }
+
+  var lastNow = performance.now();
   function frame(now) {
+    var dt = Math.min(100, now - lastNow);
+    lastNow = now;
     dots.forEach(function (d) {
       var t = (((now * speed) / 1800) + d.offset) % 1;
       var pt = d.path.getPointAtLength(t * d.len);
       d.circle.setAttribute('cx', pt.x);
       d.circle.setAttribute('cy', pt.y);
     });
-    if (playing && now - stepStart > STEP_MS / speed) {
-      if (stepIndex < steps().length - 1) { go(stepIndex + 1); } else { setPlaying(false); }
+    if (playing) {
+      stepElapsed += dt * speed;
+      if (stepElapsed >= STEP_MS) {
+        if (stepIndex < steps().length - 1) { go(stepIndex + 1); } else { stepElapsed = STEP_MS; setPlaying(false); }
+      }
     }
+    var total = steps().length * STEP_MS, pos = stepIndex * STEP_MS + Math.min(stepElapsed, STEP_MS);
+    var idle = !playing && stepIndex === 0 && stepElapsed < 50;
+    if (idle !== idleNow) { idleNow = idle; apply(true); }
+    PharePlayer.setState(playing ? 'playing' : (atEnd() ? 'ended' : 'paused'));
+    PharePlayer.setClock(pos / 1000, total / 1000);
+    if (document.activeElement !== $('scrub')) $('scrub').value = Math.round(pos / total * 1000);
     requestAnimationFrame(frame);
   }
 
   $('prev').addEventListener('click', function () { go(stepIndex - 1); });
   $('next').addEventListener('click', function () { go(stepIndex + 1); });
   $('play').addEventListener('click', function () {
-    if (!playing && stepIndex === steps().length - 1) { stepIndex = 0; apply(); }
+    if (!playing && atEnd()) { stepIndex = 0; apply(); }
     setPlaying(!playing);
   });
-  $('scenario').addEventListener('change', function (e) {
-    scenarioKey = e.target.value;
-    stepIndex = 0;
-    setPlaying(false);
-    apply();
-  });
-  $('speed').addEventListener('change', function (e) { speed = parseFloat(e.target.value) || 1; });
-  Array.prototype.forEach.call(document.querySelectorAll('[data-layer]'), function (cb) {
-    cb.addEventListener('change', function () { svg.classList.toggle('hide-' + cb.getAttribute('data-layer'), !cb.checked); });
+  PharePlayer.onSpeed(function (v) { speed = v; });
+  $('scrub').addEventListener('input', function (e) {
+    var total = steps().length * STEP_MS, pos = parseFloat(e.target.value) / 1000 * total;
+    var idx = Math.max(0, Math.min(steps().length - 1, Math.floor(pos / STEP_MS)));
+    if (idx !== stepIndex) go(idx);
+    stepElapsed = Math.max(0, Math.min(STEP_MS, pos - idx * STEP_MS));
   });
   document.addEventListener('keydown', function (e) {
     if (e.target && /^(SELECT|INPUT)$/.test(e.target.tagName)) return;
     if (e.key === 'ArrowRight') go(stepIndex + 1);
     else if (e.key === 'ArrowLeft') go(stepIndex - 1);
-    else if (e.key === ' ') { e.preventDefault(); $('play').click(); }
+    else if (e.key === ' ' && e.target.tagName !== 'BUTTON') { e.preventDefault(); $('play').click(); }
   });
 
-  Object.keys(D.scenarios).forEach(function (k) {
-    var o = document.createElement('option');
-    o.value = k;
-    o.textContent = D.scenarios[k].name;
-    $('scenario').appendChild(o);
+  PharePlayer.scenarios(Object.keys(D.scenarios).map(function (k) { return { value: k, label: D.scenarios[k].name }; }), function (v) {
+    scenarioKey = v;
+    stepIndex = 0;
+    setPlaying(false);
+    apply();
   });
+  PharePlayer.setScenario(scenarioKey);
 
   (function fromHash() {
     var m = /^#([a-z]+)\/(\d+)$/.exec(window.location.hash || '');
     if (m && D.scenarios[m[1]]) {
       scenarioKey = m[1];
-      $('scenario').value = m[1];
+      PharePlayer.setScenario(m[1]);
       stepIndex = Math.max(0, parseInt(m[2], 10) - 1);
     }
   })();
 
+  PharePlayer.cta(document.querySelector('.stagecol'), 'Lancer le processus');
   apply();
   requestAnimationFrame(frame);
 })();

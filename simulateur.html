@@ -4,34 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PHARE — simulateur de l'usine</title>
-<link rel="stylesheet" href="nav.css">
+<link rel="icon" type="image/svg+xml" href="phare_icon.svg">
+<link rel="stylesheet" href="shell.css">
 <link rel="stylesheet" href="simulateur.css">
 </head>
 <body>
-<nav class="viewnav" aria-label="Vues du prototype">
-  <a href="simulateur.html" aria-current="page"><b>Simulateur</b><span>jouer des scénarios et des pannes</span></a>
-  <a href="usine.html"><b>Chaîne de production</b><span>visite guidée</span></a>
-  <a href="index.html"><b>Vue technique</b><span>acteurs, dépendances, contrôles</span></a>
-  <span class="spacer"></span>
-  <span class="hint">Les trois vues décrivent le même PHARE</span>
-</nav>
-<header class="top">
-  <div class="brand">
-    <h1>PHARE</h1>
-    <p class="acro"><b>P</b>lateforme <b>H</b>ybride <b>A</b>gentique de <b>R</b>éalisation <b>E</b>ncadrée</p>
+<div id="site-header"></div>
+<header class="viewbar">
+  <div class="viewbar-title">
+    <h1>Simulateur</h1>
     <p id="run-line">Usine logicielle sous contrôle : orchestrateur déterministe, contrôles, humains aux points de décision</p>
   </div>
-  <div class="kpis" aria-label="Compteurs de la simulation">
-    <div><span id="k-ok">0</span><small>demandes de fusion livrées</small></div>
-    <div><span id="k-ko">0</span><small>fabrications refusées ou arrêtées</small></div>
-    <div><span id="k-h">0</span><small>décisions humaines</small></div>
-    <div><span id="k-g">0</span><small>contrôles franchis</small></div>
+  <div class="viewbar-right">
+    <div class="kpis" aria-label="Compteurs de la simulation">
+      <div><span id="k-ok">0</span><small>demandes de fusion livrées</small></div>
+      <div><span id="k-ko">0</span><small>fabrications refusées ou arrêtées</small></div>
+      <div><span id="k-h">0</span><small>décisions humaines</small></div>
+      <div><span id="k-g">0</span><small>contrôles franchis</small></div>
+    </div>
   </div>
 </header>
+<div class="states" id="states" aria-label="États du cycle de vie"></div>
 
 <div class="layout">
   <section class="stage">
     <div class="scene">
+      <div id="trans-card" class="trans-card" hidden aria-live="polite">
+        <div class="tcard"><small id="t-count"></small><strong id="t-title"></strong><span id="t-sub"></span><i></i></div>
+      </div>
       <svg id="map" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Synoptique de l'usine PHARE : orchestrateur au centre, huit modules autour"></svg>
       <div id="estop-banner" class="estop-banner" hidden>
         <strong>ARRÊT D'URGENCE ENGAGÉ</strong>
@@ -39,19 +39,6 @@
       </div>
     </div>
     <div class="caption" id="caption" aria-live="polite"></div>
-    <div class="transport">
-      <button id="prev" type="button" class="btn">Étape précédente</button>
-      <button id="play" type="button" class="btn" aria-label="Lecture ou pause">Pause</button>
-      <button id="next" type="button" class="btn">Étape suivante</button>
-      <label class="chk"><input id="stepmode" type="checkbox"> Pas à pas</label>
-      <span class="speed" role="group" aria-label="Vitesse">
-        <button type="button" class="btn small on" data-speed="1">×1</button>
-        <button type="button" class="btn small" data-speed="2">×2</button>
-        <button type="button" class="btn small" data-speed="4">×4</button>
-      </span>
-      <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Position dans le scénario">
-      <span id="clock" class="clock">T+00:00</span>
-    </div>
   </section>
 
   <aside class="side">
@@ -73,26 +60,26 @@
 
     <div class="tabs" role="tablist">
       <button type="button" role="tab" class="tab on" data-pane="p-scen">Scénarios</button>
-      <button type="button" role="tab" class="tab" data-pane="p-params">Entrées</button>
+      <button type="button" role="tab" class="tab" data-pane="p-params">Paramètres entrés</button>
       <button type="button" role="tab" class="tab" data-pane="p-humans">Humains</button>
       <button type="button" role="tab" class="tab" data-pane="p-orch">Orchestration</button>
       <button type="button" role="tab" class="tab" data-pane="p-log">Journal</button>
       <button type="button" role="tab" class="tab" data-pane="p-info">Détail</button>
-      <button type="button" role="tab" class="tab" data-pane="p-gloss">Mots</button>
+      <button type="button" role="tab" class="tab" data-pane="p-gloss">Glossaire</button>
     </div>
 
     <div id="p-scen" class="pane">
       <h2>Scénarios prêts à jouer</h2>
       <div id="scen-list" class="scen-list"></div>
-      <label class="chk"><input id="demo" type="checkbox" checked> Démo automatique : 5 scénarios à la suite, puis arrêt (stand)</label>
+      <label class="chk"><input id="demo" type="checkbox" checked> Démo automatique : 6 scénarios à la suite, puis arrêt (stand)</label>
       <label class="chk"><input id="autohuman" type="checkbox" checked> Humains simulés (valident seuls après 1,5 s)</label>
-      <p class="note">Un scénario règle les entrées de l'onglet « Entrées » ; tu peux ensuite les modifier et relancer. Simulation illustrative : aucune valeur n'est mesurée. Source de vérité : <code>docs/conception/</code> et les ADR.</p>
+      <p class="note">Un scénario règle les paramètres de l'onglet « Paramètres entrés » ; tu peux ensuite les modifier et relancer. Simulation illustrative : aucune valeur n'est mesurée. Source de vérité : <code>docs/conception/</code> et les ADR.</p>
     </div>
 
     <div id="p-params" class="pane" hidden>
-      <h2>Entrées de la fabrication</h2>
+      <h2>Paramètres entrés pour la fabrication</h2>
       <div id="params"></div>
-      <button id="launch" type="button" class="btn go launch">Lancer avec ces entrées</button>
+      <button id="launch" type="button" class="btn go launch">Lancer avec ces paramètres</button>
       <p id="derived" class="note"></p>
     </div>
 
@@ -109,7 +96,7 @@
       <div id="trans" class="trans"></div>
       <h2>Rejeu</h2>
       <p class="note">Même entrées, même chemin d'état. Le contenu généré, lui, peut différer d'une fabrication à l'autre.</p>
-      <button id="replay" type="button" class="btn small">Rejouer avec les mêmes entrées</button>
+      <button id="replay" type="button" class="btn small">Rejouer avec les mêmes paramètres</button>
       <div id="replays" class="replays"></div>
       <h2>Ce que le modèle ne décide jamais</h2>
       <ul class="plain">
@@ -127,7 +114,7 @@
 
 
     <div id="p-gloss" class="pane" hidden>
-      <h2>Les mots, simplement</h2>
+      <h2>Glossaire</h2>
       <dl class="gloss">
         <dt>Modèle d'IA</dt><dd>Le moteur de langage qui lit et écrit du texte et du code (exemples : Claude, Gemini, Codex, Mistral, Kimi). Il reste <b>hors de la cellule</b>. PHARE n'est lié à aucun d'eux.</dd>
         <dt>Agent</dt><dd>Programme qui utilise un modèle pour agir : lire des fichiers, lancer des tests, écrire du code. Il travaille <b>dans la cellule</b>.</dd>
@@ -143,7 +130,7 @@
         <dt>Dans le doute, on s'arrête (fail-closed)</dt><dd>Sans autorisation claire, l'usine refuse. Elle ne continue jamais par défaut.</dd>
         <dt>Demande de fusion (MR)</dt><dd>Proposition de changement soumise dans GitLab, avec son dossier de preuves. Un ingénieur la relit et l'approuve.</dd>
         <dt>Escalade</dt><dd>L'usine ne peut plus avancer seule : elle appelle l'équipe plateforme (le « mécanicien »), qui diagnostique, relance ou arrête.</dd>
-        <dt>Règles communes (skills)</dt><dd>Bibliothèque signée de consignes : connexion SSO (SAML / OIDC), règles IA, design system, règles du langage du projet.</dd>
+        <dt>Règles communes (skills)</dt><dd>Bibliothèque signée de consignes : authentification (OIDC / SAML / LDAPS), règles IA, design system, règles du langage du projet.</dd>
         <dt>Arrêt d'urgence (kill switch)</dt><dd>Bouton du RSSI ou de son adjoint : tout est gelé, les cellules détruites, les clés révoquées.</dd>
       </dl>
     </div>
@@ -155,11 +142,14 @@
       <p id="i-human"></p>
       <h3>Sous le capot</h3>
       <p id="i-tech"></p>
-      <p class="xlinks"><a id="x-usine" href="usine.html">Voir cette étape dans la chaîne de production</a><br><a id="x-tech" href="index.html">Voir cette étape dans la vue technique</a></p>
+      <p class="xlinks"><a id="x-usine" href="index.html">Voir cette étape dans la chaîne de production</a><br><a id="x-tech" href="processus.html">Voir cette étape dans la vue processus</a></p>
     </div>
   </aside>
 </div>
 
+<div id="player"></div>
+
+<script src="shell.js"></script>
 <script src="simulateur.js"></script>
 </body>
 </html>

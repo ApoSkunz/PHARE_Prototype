@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHARE — vue processus</title>
+<link rel="icon" type="image/svg+xml" href="phare_icon.svg">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<header class="viewbar">
+  <div class="viewbar-title">
+    <h1>Vue processus</h1>
+    <p>Acteurs, dépendances techniques et interventions humaines, étape par étape. Aligné sur les ADR 0001 à 0006.</p>
+  </div>
+</header>
+
+<div class="states" id="states" aria-label="Étapes du cycle de vie : cliquer pour y aller"></div>
+
+<main>
+  <div class="stagecol">
+    <div class="stage">
+      <svg id="canvas" viewBox="0 0 1370 690" role="img" aria-label="Schéma du fonctionnement de PHARE"></svg>
+    </div>
+  </div>
+  <aside class="side">
+    <div id="step-count" class="hint"></div>
+    <h2 id="step-title"></h2>
+    <div id="step-who"></div>
+    <p><a id="to-sim" class="xlink" href="simulateur.html">Rejouer ce scénario dans le simulateur</a><br><a id="to-usine" class="xlink" href="index.html">Voir cette étape dans la chaîne de production</a></p>
+    <p id="step-text"></p>
+    <h3>Dépendances techniques</h3>
+    <ul id="step-deps"></ul>
+    <h3>Contrôles</h3>
+    <ul id="step-ctrl"></ul>
+    <p class="hint">Raccourcis : flèches gauche et droite, barre d'espace pour la lecture.</p>
+  </aside>
+</main>
+
+<div id="player"></div>
+
+<script src="data.js"></script>
+<script src="shell.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

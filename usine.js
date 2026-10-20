@@ -1,4 +1,4 @@
-/* Vue « chaîne de production » : visite guidée animée de PHARE, enchaîne les versions en boucle (case), interruptible.
+/* Vue « chaîne de production » (page d'accueil) : visite guidée animée de PHARE, enchaîne automatiquement les scénarios en boucle, interruptible.
    Toute la scène est une fonction du temps t : lecture, pause, curseur et boucle sont déterministes.
    Les personnes travaillent sur des postes suspendus au-dessus du tapis : rien ne se chevauche avec le colis. */
 (function () {
@@ -6,7 +6,7 @@
 
   var NS = 'http://www.w3.org/2000/svg';
   var W = 6760, H = 620, T = 92, BELT = 470, DECK = 338;
-  var COL = { human: '#e8590c', system: '#5f3dc4', guard: '#c92a2a', ext: '#0b7285', ok: '#2f9e44', ink: '#1f2430', accent: '#f59f00', mute: '#566074', blue: '#1c7ed6', red2: '#d9480f' };
+  var COL = { human: '#d9480f', system: '#5f3dc4', guard: '#c92a2a', ext: '#0b7285', ok: '#2b8a3e', ink: '#1a1f2b', accent: '#f59f00', mute: '#445066', blue: '#1c7ed6', red2: '#d9480f' };
 
   var svg = document.getElementById('scene');
   var viewport = document.getElementById('viewport');
@@ -211,10 +211,10 @@
   var cellLabel = S('text', { x: 3600, y: 270, 'text-anchor': 'middle', class: 'note', fill: COL.system }, svg, 'Cellule isolée');
   S('text', { x: 3092, y: 180, class: 'tiny' }, svg, 'Modèles d\'IA : dehors');
   var exLabel = S('text', { x: 3092, y: 198, class: 'tiny' }, svg, 'exemples seulement');
-  var books = ['Connexion SSO', 'Règles IA', 'Design system', 'Java · Angular'].map(function (name, i) {
+  var books = ['OIDC · SAML · LDAPS', 'Règles IA', 'Design system', 'Java · Angular'].map(function (name, i) {
     var g = S('g', { transform: 'translate(3190,' + (388 - 34 * i) + ')' }, svg);
-    S('rect', { x: -64, y: -15, width: 128, height: 30, rx: 6, fill: '#fff', stroke: COL.ext, 'stroke-width': 3 }, g);
-    S('text', { x: 0, y: 5, 'text-anchor': 'middle', style: 'font-size:15px;font-weight:700', fill: COL.ink }, g, name);
+    S('rect', { x: -90, y: -15, width: 180, height: 30, rx: 6, fill: '#fff', stroke: COL.ext, 'stroke-width': 3 }, g);
+    S('text', { x: 0, y: 5, 'text-anchor': 'middle', style: 'font-size:14.5px;font-weight:700', fill: COL.ink }, g, name);
     return g;
   });
   S('text', { x: 3190, y: 262, 'text-anchor': 'middle', class: 'tiny' }, svg, 'règles communes');
@@ -312,36 +312,15 @@
   S('rect', { x: 40, y: -30, width: 56, height: 40, rx: 6, fill: '#e7f5ff', stroke: '#1864ab', 'stroke-width': 4 }, proofFolder);
   S('text', { x: 68, y: -4, 'text-anchor': 'middle', style: 'font-size:14px;font-weight:700', fill: '#1864ab' }, proofFolder, 'preuves');
 
-  /* ---------- Bandeau humain, cycle de vie, légendes ---------- */
-  var humans = [
-    { label: 'Product Owner', win: [[0.5, 8]] },
-    { label: 'Designer', win: [[0.5, 8]] },
-    { label: 'Chef de projet', win: [[30, 34]] },
-    { label: 'Ingénieur', win: [[80, 86]] },
-    { label: 'RSSI : veille', win: [] },
-    { label: 'Équipe plateforme : veille', win: [] },
-  ];
-  var humansEl = document.getElementById('humans');
-  humans.forEach(function (h) {
-    var t = document.createElement('span');
-    t.className = 'token';
-    t.innerHTML = '<i></i>';
-    h.node = document.createTextNode(h.label);
-    t.appendChild(h.node);
-    humansEl.appendChild(t);
-    h.el = t;
-  });
+  /* ---------- Cycle de vie, légendes ---------- */
   var lifecycle = [
     ['Besoin', 0, 9], ['Contrôle d\'entrée', 9, 19], ['Plan', 19, 30], ['Prêt à lancer', 30, 34], ['Lancé', 34, 38],
     ['Fabrication', 38, 62], ['Contrôle de sortie', 62, 74], ['Relecture humaine', 74, 86], ['Livré', 86, 93],
   ];
   var statesEl = document.getElementById('states');
-  var stateEls = lifecycle.map(function (s) {
-    var e = document.createElement('span');
-    e.className = 'state';
-    e.textContent = s[0];
-    statesEl.appendChild(e);
-    return e;
+  var phases = PharePlayer.phases(statesEl, lifecycle.map(function (s) { return s[0]; }), function (i) {
+    var tv = phaseStart(state.variant, i);
+    if (tv !== null) seek(tv);
   });
   var humanEvents = [3, 32, 83];
   var checkEvents = [10.5, 12, 13.5, 15, 16.5, 63.5, 64.5, 65.5, 70, 80];
@@ -366,7 +345,7 @@
   ];
 
 
-  /* ---------- Versions de la visite : même usine, autres issues ---------- */
+  /* ---------- Scénarios de la visite : même usine, autres issues ---------- */
   var statesAbort = document.createElement('span');
   statesAbort.className = 'state';
   statesAbort.textContent = 'Abandonné';
@@ -419,9 +398,9 @@
   var idMap = function (tv) { return tv; };
 
   var VARIANTS = {
-    nominal: { name: 'Nominale : un projet de bout en bout', T: 92, map: idMap, caps: captions, overlay: function () {}, preset: null, humans: {} },
+    nominal: { name: 'Nominal : un projet de bout en bout', T: 92, map: idMap, caps: captions, overlay: function () {}, preset: null },
     piege: {
-      name: 'Ticket piégé : refusé à l\'entrée', T: 30, preset: 'injection', abortAt: 14, humans: { 'Product Owner': [[14, 25]] },
+      name: 'Ticket piégé : refusé à l\'entrée', T: 30, preset: 'injection', abortAt: 14,
       map: function (tv) { return Math.min(tv, 12.4); },
       caps: cut(captions, 9).concat([
         plain([11.5, 'Consigne cachée détectée', 'Un ticket contient une instruction déguisée (« ignore tes règles… »). Un ticket dit quoi construire, jamais comment l\'agent se comporte : il est refusé.', 'entree']),
@@ -439,7 +418,7 @@
       },
     },
     'sortie-ko': {
-      name: 'Contrôle de sortie en échec', T: 84, preset: 'mutation', abortAt: 70, humans: { 'Équipe plateforme : veille': [[70, 84]] },
+      name: 'Contrôle de sortie en échec', T: 84, preset: 'mutation', abortAt: 70,
       map: function (tv) { return Math.min(tv, 66); },
       caps: cut(captions, 62).concat([
         plain([64.5, 'Banc d\'essai : un défaut n\'est pas vu', 'On introduit un défaut exprès dans le code : les tests ne le détectent pas. Ces tests ne prouvent donc rien.', 'sortie']),
@@ -458,7 +437,7 @@
       },
     },
     c3: {
-      name: 'Projet confidentiel (C3)', T: 92, preset: 'c3', humans: {},
+      name: 'Projet confidentiel (C3)', T: 92, preset: 'c3',
       map: idMap,
       caps: patch(captions, {
         9: ['Contrôle d\'entrée : niveau C3', 'Projet très confidentiel : le niveau n\'est jamais abaissé automatiquement. Il décide des modèles permis, du blindage de la cellule et du nombre d\'approbateurs.'],
@@ -469,7 +448,7 @@
       overlay: function () {},
     },
     meca: {
-      name: 'Agent bloqué : le mécanicien intervient', T: 106, preset: 'boucle', humans: { 'Équipe plateforme : veille': [[54, 68]] },
+      name: 'Agent bloqué : le mécanicien intervient', T: 106, preset: 'boucle',
       map: function (tv) { return tv < 50 ? tv : (tv < 64 ? 50 : tv - 14); },
       caps: cut(captions, 45).concat([
         plain([50, 'La boucle tourne en rond', 'Le constructeur répète le même échec : l\'orchestrateur le détecte et arrête la tâche. Un agent ne peut pas s\'auto-réparer sans limite.', 'sandbox']),
@@ -512,7 +491,7 @@
   var beltTop = BELT;
 
   /* ---------- Rendu d'un instant ---------- */
-  var state = { busy: false, variant: 'nominal', t: 0, playing: true, speed: 1, emergency: false, hold: 0, focusX: 0 };
+  var state = { busy: false, variant: 'nominal', t: 0, playing: false, speed: 1, emergency: false, hold: 0, focusX: 0 };
 
   function render(tv) {
     var V = VARIANTS[state.variant], t = V.map(tv);
@@ -630,27 +609,23 @@
     show(deliveredSub, t >= 88);
 
     /* Sorties d'étape */
+    /* Avant le lancement (en pause au tout début) : aucune étape n'est « en cours », rien n'est en orange */
+    var idle = !state.playing && state.t < 0.05;
     outCards.forEach(function (c) {
-      var done = t >= c.t1, cur = t >= c.t0 && t < c.t1;
+      var done = t >= c.t1, cur = !idle && t >= c.t0 && t < c.t1;
       c.g.setAttribute('opacity', done || cur ? 1 : 0.45);
       c.r.setAttribute('fill', done ? '#ebfbee' : (cur ? '#fff9db' : '#fff'));
       c.mark.textContent = done ? '✓ produit' : (cur ? 'en cours' : '');
       c.mark.setAttribute('fill', done ? COL.ok : COL.accent);
     });
 
-    /* Versions : textes propres au cas, puis éléments qui prennent le pas sur la visite nominale */
+    /* Scénarios : textes propres au cas, puis éléments qui prennent le pas sur la visite nominale */
     state.focusX = inTruck ? truckX : ix;
     [stuckTag, stuckLed, mech, packet, refuseStamp, koStamp].forEach(function (e) { show(e, false); });
     applyTxt(state.variant === 'c3' ? C3_TXT : NOM_TXT);
     V.overlay(tv, t);
 
     /* Interface */
-    humans.forEach(function (h) {
-      var extra = (V.humans[h.label] || []).some(function (w) { return tv >= w[0] && tv < w[1]; });
-      var on = extra || h.win.some(function (w) { return t >= w[0] && t < w[1]; });
-      h.el.classList.toggle('on', on);
-      if (h.label === 'Équipe plateforme : veille') h.node.textContent = extra ? 'Équipe plateforme : intervient' : h.label;
-    });
     var nCheck = checkEvents.filter(function (e) { return t >= e; }).length;
     document.getElementById('c-human').textContent = humanEvents.filter(function (e) { return t >= e; }).length;
     document.getElementById('c-check').textContent = V.checks ? V.checks(tv, nCheck) : nCheck;
@@ -662,12 +637,13 @@
     if (V.preset) { link.href = 'simulateur.html#s=' + V.preset; link.textContent = 'Rejouer ce cas dans le simulateur'; }
     else { link.href = 'simulateur.html#key=' + cap.mod; link.textContent = 'Voir ce composant dans le simulateur'; }
     var aborted = V.abortAt !== undefined && tv >= V.abortAt;
-    lifecycle.forEach(function (s, i) {
-      stateEls[i].className = 'state' + (t >= s[2] ? ' past' : (t >= s[1] && !aborted ? ' current' : ''));
-    });
+    var cur = 0;
+    lifecycle.forEach(function (s, i) { if (t >= s[2]) cur = i + 1; });
+    phases.paint(cur, phaseAvail(state.variant), aborted || idle);
     statesAbort.hidden = V.abortAt === undefined;
     statesAbort.className = 'state' + (aborted ? ' current' : '');
     document.getElementById('scrub').value = Math.round(tv * 10);
+    PharePlayer.setClock(tv, T);
   }
 
   /* ---------- Taille et caméra ---------- */
@@ -688,15 +664,12 @@
 
   /* ---------- Lecture, pause, interruptions ---------- */
   var playBtn = document.getElementById('play');
-  var resumeBtn = document.getElementById('resume');
   var banner = document.getElementById('banner');
 
   function setPlaying(p) {
     state.playing = p;
-    playBtn.textContent = p ? 'Pause' : 'Lecture';
-    resumeBtn.hidden = p || state.emergency;
   }
-  /* Fin de visite : la lecture s'arrête, rien ne repart seul ; « Rejouer » ou la barre d'espace relance depuis le début. */
+  /* Fin de visite : la lecture s'arrête, rien ne repart seul ; le bouton central (« Rejouer ») ou la barre d'espace relance depuis le début. */
   function togglePlay() {
     if (state.emergency) { setEmergency(false); return; }
     if (!state.playing && state.t >= T) { state.t = 0; state.hold = 0; }
@@ -709,19 +682,43 @@
     viewport.classList.toggle('stopped', on);
     document.getElementById('stop').classList.toggle('latched', on);
     if (on) setPlaying(false); else setPlaying(true);
-    resumeBtn.hidden = on || state.playing;
   }
 
   playBtn.addEventListener('click', function () { togglePlay(); });
-  resumeBtn.addEventListener('click', function () { setPlaying(true); });
-  document.getElementById('restart').addEventListener('click', function () { state.t = 0; state.hold = 0; if (state.emergency) setEmergency(false); setPlaying(true); render(0); });
   document.getElementById('stop').addEventListener('click', function () { setEmergency(!state.emergency); });
-  document.getElementById('speed').addEventListener('change', function (e) { state.speed = parseFloat(e.target.value) || 1; });
-  document.getElementById('full').addEventListener('click', function () {
-    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
-  });
+  PharePlayer.onSpeed(function (v) { state.speed = v; });
   var scrub = document.getElementById('scrub');
-  scrub.addEventListener('input', function () { interrupt(); state.t = scrub.value / 10; state.hold = 0; render(state.t); });
+  /* Étapes cliquables : instant le plus tôt du scénario où l'étape est atteinte (null = absente de ce scénario) */
+  var phaseMemo = {};
+  function phaseStart(v, i) {
+    var key = v + ':' + i;
+    if (!(key in phaseMemo)) {
+      var Vv = VARIANTS[v], r = null;
+      for (var tv = 0; tv <= Vv.T + 1e-6; tv += 0.1) { if (Vv.map(tv) >= lifecycle[i][1] - 1e-6) { r = Math.round(tv * 10) / 10; break; } }
+      phaseMemo[key] = r;
+    }
+    return phaseMemo[key];
+  }
+  function phaseAvail(v) { return lifecycle.map(function (s, i) { return phaseStart(v, i) !== null; }); }
+
+  /* Chapitres = les légendes du scénario courant : précédent / suivant sautent d'un chapitre à l'autre, sans changer l'état de lecture. */
+  function focusNow() {
+    viewport.scrollLeft = Math.max(0, Math.min(W * scale - viewport.clientWidth, state.focusX * scale - viewport.clientWidth * 0.42));
+  }
+  function seek(t) {
+    state.t = Math.max(0, Math.min(T, t)); state.hold = 0;
+    render(state.t);
+    focusNow();
+  }
+  function chapterStep(dir) {
+    var caps = VARIANTS[state.variant].caps, t = state.t, i, cur = 0;
+    for (i = 0; i < caps.length; i++) if (caps[i].t <= t) cur = i;
+    if (dir > 0) seek(cur + 1 < caps.length ? caps[cur + 1].t : T);
+    else seek(t - caps[cur].t > 1.5 || cur === 0 ? caps[cur].t : caps[cur - 1].t);
+  }
+  document.getElementById('prev').addEventListener('click', function () { chapterStep(-1); });
+  document.getElementById('next').addEventListener('click', function () { chapterStep(1); });
+  scrub.addEventListener('input', function () { seek(scrub.value / 10); });
 
   var drag = null;
   viewport.addEventListener('pointerdown', function (e) {
@@ -741,8 +738,8 @@
   document.addEventListener('keydown', function (e) {
     if (/^(INPUT|SELECT|BUTTON)$/.test(e.target.tagName) && e.key === ' ') return;
     if (e.key === ' ') { e.preventDefault(); togglePlay(); }
-    else if (e.key === 'ArrowRight') { interrupt(); state.t = Math.min(T, state.t + 3); render(state.t); }
-    else if (e.key === 'ArrowLeft') { interrupt(); state.t = Math.max(0, state.t - 3); render(state.t); }
+    else if (e.key === 'ArrowRight') chapterStep(1);
+    else if (e.key === 'ArrowLeft') chapterStep(-1);
   });
   window.addEventListener('resize', resize);
 
@@ -753,20 +750,15 @@
     last = now;
     if (state.playing && !state.busy) {
       if (state.t >= T) {
-        if (document.getElementById('chain').checked) {
-          /* Enchaînement des versions : courte pause sur l'issue, puis la version suivante, en boucle. */
-          state.hold += dt;
-          if (state.hold > 2.5) { state.hold = 0; switchVariant(ORDER[(ORDER.indexOf(state.variant) + 1) % ORDER.length]); }
-        } else {
-          state.playing = false;
-          playBtn.textContent = 'Rejouer';
-          resumeBtn.hidden = true;
-        }
+        /* Enchaînement automatique des scénarios : courte pause sur l'issue, puis le scénario suivant, en boucle. */
+        state.hold += dt;
+        if (state.hold > 2.5) { state.hold = 0; switchVariant(ORDER[(ORDER.indexOf(state.variant) + 1) % ORDER.length]); }
       } else {
         state.t = Math.min(T, state.t + dt * state.speed);
       }
     }
     render(state.t);
+    PharePlayer.setState(state.playing ? 'playing' : (state.t >= T ? 'ended' : 'paused'));
     if (!state.busy) follow(dt);
     beltPat.setAttribute('patternTransform', 'translate(' + ((state.t * 54) % 48) + ',0)');
     requestAnimationFrame(frame);
@@ -777,14 +769,14 @@
     state.variant = v;
     T = VARIANTS[v].T;
     document.getElementById('scrub').max = Math.round(T * 10);
-    document.getElementById('variant').value = v;
+    PharePlayer.setScenario(v);
   }
-  /* Écran-titre entre deux versions : masque le rechargement de la scène et annonce la suivante. */
+  /* Écran-titre entre deux scénarios : masque le rechargement de la scène et annonce le suivant. */
   var overlay = document.getElementById('transition');
   function switchVariant(v) {
     if (!VARIANTS[v] || state.busy) return;
     state.busy = true;
-    document.getElementById('t-count').textContent = 'Version ' + (ORDER.indexOf(v) + 1) + ' sur ' + ORDER.length;
+    document.getElementById('t-count').textContent = 'Scénario ' + (ORDER.indexOf(v) + 1) + ' sur ' + ORDER.length;
     document.getElementById('t-title').textContent = VARIANTS[v].name;
     document.getElementById('t-sub').textContent = VARIANTS[v].blurb;
     overlay.classList.add('on');
@@ -796,22 +788,24 @@
     }, 450);
     setTimeout(function () { overlay.classList.remove('on'); state.busy = false; }, 1900);
   }
-  document.getElementById('variant').addEventListener('change', function (e) {
-    document.getElementById('chain').checked = false;
+  /* Choisir un scénario le charge au début, en pause : l'utilisateur lance la lecture */
+  PharePlayer.scenarios(ORDER.map(function (k) { return { value: k, label: VARIANTS[k].name }; }), function (v) {
     if (state.emergency) setEmergency(false);
-    setPlaying(true);
-    switchVariant(e.target.value);
+    setPlaying(false);
+    switchVariant(v);
   });
+  PharePlayer.setScenario(state.variant);
   var mv = /[#&]v=([a-z0-9-]+)/.exec(window.location.hash || '');
-  if (mv) { setVariant(mv[1]); document.getElementById('chain').checked = false; }
+  if (mv) setVariant(mv[1]);
 
+  document.getElementById('scrub').max = Math.round(T * 10);
+  PharePlayer.cta(document.getElementById('stagewrap'), 'Lancer la visite');   /* le lecteur démarre en pause : le bouton invite à démarrer */
   resize();
   var m = /[#&]t=(\d+(\.\d+)?)/.exec(window.location.hash || '');
-  if (m) { document.getElementById('chain').checked = false; state.t = Math.min(T, parseFloat(m[1])); state.playing = false; playBtn.textContent = 'Lecture'; }
+  if (m) { state.t = Math.min(T, parseFloat(m[1])); state.playing = false; }
   render(state.t);
   if (m) {
-    viewport.scrollLeft = Math.max(0, Math.min(W * scale - viewport.clientWidth, state.focusX * scale - viewport.clientWidth * 0.42));
-    resumeBtn.hidden = false;
+    focusNow();
   }
   requestAnimationFrame(frame);
 })();

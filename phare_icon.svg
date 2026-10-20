@@ -1,0 +1,7 @@
+<svg viewBox="42 20 150 154" xmlns="http://www.w3.org/2000/svg"><defs>
+  <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0.15">
+    <stop offset="0" stop-color="#FF5815" stop-opacity="0.50"/>
+    <stop offset="1" stop-color="#FF5815" stop-opacity="0"/>
+  </linearGradient>
+  <clipPath id="towerclip"><path d="M78,70 L102,70 L114,158 L66,158 Z"/></clipPath>
+</defs><g transform="translate(0,0) scale(1)"><path d="M90,52 L184,16 L184,62 Z" fill="url(#beam)"/><rect x="56" y="158" width="68" height="12" rx="3.5" fill="#001A71"/><path d="M78,70 L102,70 L114,158 L66,158 Z" fill="#001A71"/><g clip-path="url(#towerclip)"><rect x="48" y="92" width="94" height="13" fill="#FF5815"/><rect x="46" y="124" width="98" height="13" fill="#FF5815"/></g><rect x="71" y="62" width="38" height="8" rx="2" fill="#001A71"/><rect x="73" y="41" width="34" height="21" rx="3" fill="#FFA02F"/><text x="90" y="57" font-size="14" font-weight="700" fill="#001A71" text-anchor="middle" font-family="'DejaVu Sans Mono','Consolas',monospace">&lt;/&gt;</text><path d="M71,41 L109,41 L90,26 Z" fill="#001A71"/><circle cx="90" cy="24" r="3" fill="#FF5815"/></g></svg>

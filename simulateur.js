@@ -9,8 +9,11 @@
   var CX = 600, CY = 360, RX = 430, RY = 250;      /* anneau des modules */
   var TX = 270, TY = 170;                          /* tapis roulant (flux des dossiers) */
   var DR0 = 82, DR1 = 120;                         /* cadran de l'orchestrateur */
-  var MW = 196, MH = 100;                          /* module */
-  var COL = { human: '#ffa94d', system: '#9775fa', guard: '#ff6b6b', agent: '#4dabf7', ext: '#20c997', ok: '#51cf66', warn: '#fcc419', mute: '#93a1ba', line: '#2a3957', card: '#16213a', deep: '#0e1626', text: '#e6ecf7' };
+  var MW = 196, MH = 100;                          /* module (repère interne) */
+  var K = 1.12;                                    /* agrandissement des modules : textes plus lisibles */
+  var COL = { human: '#d9480f', system: '#5f3dc4', guard: '#c92a2a', agent: '#1971c2', ext: '#0b7285', ok: '#2b8a3e', warn: '#f59f00', mute: '#445066', line: '#8b98b2', card: '#ffffff', deep: '#f1f4fa', text: '#1a1f2b' };
+  /* Thème blanc : teintes de fond et de repos du synoptique */
+  var LT = { grid: '#e8ecf5', ring: '#9aa6bd', track: '#d5dcec', belt: '#4f6fb5', spoke: '#8e9db9', dialBg: '#ffffff', dialArc: '#d3dbeb', dialDone: '#9775fa', halo: '#ffffff', actFill: '#d0ebff', koFill: '#ffe3e3', waitFill: '#ffe8cc', doneFill: '#d3f9d8', runFill: '#fff3cd', idleInk: '#55617a', blkLine: '#8b95a8', blkInk: '#667188' };
   var STATES = ['Cadrage', 'Contrôle d\'entrée', 'Planification', 'Prêt à lancer', 'Lancé', 'Exécution', 'Contrôle de sortie', 'Revue dans GitLab', 'Fusionné (observé)'];
   var $ = function (id) { return document.getElementById(id); };
   var svg = $('map');
@@ -53,7 +56,7 @@
     C2: { iso: 'N2', appr: 1, models: ['A', 'B', 'I'], txt: 'C2 : isolation N2, un approbateur (règles à fixer avec le RSSI).' },
     C3: { iso: 'N3', appr: 2, models: ['I'], txt: 'C3 : modèles internes seuls, isolation N3, deux approbateurs.' },
   };
-  /* Noms d'exemple : PHARE est agnostique du modèle (invariant 11) ; ils se changent dans l'onglet Entrées. */
+  /* Noms d'exemple : PHARE est agnostique du modèle (invariant 11) ; ils se changent dans l'onglet Paramètres entrés. */
   var MODELS = { A: { n: 'Claude', s: 'cloud' }, B: { n: 'Codex', s: 'cloud' }, I: { n: 'Kimi', s: 'interne' } };
   var MODEL_CHOICES = { A: ['Claude', 'Gemini', 'Codex'], B: ['Claude', 'Gemini', 'Codex'], I: ['Kimi', 'Mistral'] };
   var STACKS = {
@@ -140,8 +143,8 @@
     { id: 'changes', name: 'Changements demandés en revue', short: 'L\'ingénieur demande des corrections : même fabrication, périmètre inchangé.', set: { faults: { changes: true } } },
     { id: 'kill', name: 'Arrêt d\'urgence en cours de fabrication', short: 'Le RSSI arrête la fabrication : abandon, cellule détruite, clé révoquée.', set: { faults: { kill: true } } },
   ];
-  /* Démo automatique (stand) : 5 scénarios choisis pour montrer des facettes différentes ; les 16 restent jouables à la main. */
-  var DEMO = ['duo', 'c3', 'injection', 'mutation', 'boucle'];
+  /* Démo automatique (stand) : 6 scénarios, du plus simple (le 1er du sélecteur) aux cas difficiles ; les 16 restent jouables à la main. */
+  var DEMO = ['creation', 'duo', 'c3', 'injection', 'mutation', 'boucle'];
   var PRESET = {};
   PRESETS.forEach(function (p) { PRESET[p.id] = p; });
 
@@ -235,7 +238,7 @@
       chk: 'oooo', human: { role: 'CP', label: 'Lit le plan chiffré et signe le go' },
       log: [['HUMAIN', 'Chef de projet : rapport de contrôle d\'entrée, plan et estimation lus, go signé'], ['ORCH', 'Dossier figé (immuable) et signé']],
     });
-    add('sandbox', 4, 3, 'Fabrication lancée : cellule ' + ci.iso + ' créée, skills chargés (socle SAML / OIDC, IAG, design system, ' + stack.skills.join(', ') + ')', {
+    add('sandbox', 4, 3, 'Fabrication lancée : cellule ' + ci.iso + ' créée, skills chargés (socle OIDC / SAML / LDAPS, IAG, design system, ' + stack.skills.join(', ') + ')', {
       chk: '----', pk: 'Dossier figé', c: 0.01, skills: true,
       log: [['ORCH', 'Fabrication lancée depuis le dossier figé'], ['SYSTÈME', 'Cellule ' + ci.iso + ' créé, clé virtuelle éphémère plafonnée'], ['SYSTÈME', 'Service commun de skills : socle SAML / OIDC, skills IAG, design system + pile ' + stack.n + ' (' + stack.note + ')']],
     });
@@ -343,36 +346,44 @@
   }
 
   /* ---------- État ---------- */
-  var st = { run: null, clock: 0, playing: true, speed: 1, stepmode: false, estop: null, params: defaults(), sel: 'creation', idle: 0, demoIdx: 0,
+  var st = { run: null, clock: 0, playing: false, speed: 1, trans: 0, estop: null, params: defaults(), sel: 'creation', idle: 0, demoIdx: 0,
     ok: 0, ko: 0, hum: 0, gates: 0, logLines: [], logDirty: true, flash: '', replays: [], dirty: true, previewKey: '', preview: null };
 
   /* ---------- Scène : décor ---------- */
   var defs = S('defs', {}, svg);
   var pat = S('pattern', { id: 'grid', width: 40, height: 40, patternUnits: 'userSpaceOnUse' }, defs);
-  S('path', { d: 'M40 0 H0 V40', fill: 'none', stroke: '#16233e', 'stroke-width': 1 }, pat);
+  S('path', { d: 'M40 0 H0 V40', fill: 'none', stroke: LT.grid, 'stroke-width': 1 }, pat);
   S('rect', { x: 0, y: 0, width: 1200, height: 720, fill: 'url(#grid)' }, svg);
-  S('ellipse', { cx: CX, cy: CY, rx: RX, ry: RY, fill: 'none', stroke: '#1b2a4a', 'stroke-width': 2, 'stroke-dasharray': '3 9' }, svg);
-  S('ellipse', { cx: CX, cy: CY, rx: TX, ry: TY, fill: 'none', stroke: '#14213a', 'stroke-width': 22 }, svg);
-  var belt = S('ellipse', { cx: CX, cy: CY, rx: TX, ry: TY, fill: 'none', stroke: '#3a5aa0', 'stroke-width': 3, 'stroke-dasharray': '2 20', 'stroke-linecap': 'round' }, svg);
+  S('ellipse', { cx: CX, cy: CY, rx: RX, ry: RY, fill: 'none', stroke: LT.ring, 'stroke-width': 2, 'stroke-dasharray': '3 9' }, svg);
+  S('ellipse', { cx: CX, cy: CY, rx: TX, ry: TY, fill: 'none', stroke: LT.track, 'stroke-width': 22 }, svg);
+  var belt = S('ellipse', { cx: CX, cy: CY, rx: TX, ry: TY, fill: 'none', stroke: LT.belt, 'stroke-width': 3, 'stroke-dasharray': '2 20', 'stroke-linecap': 'round' }, svg);
 
   var spokes = {};
   MODS.forEach(function (m) {
     var a = Math.atan2(m.p.y - CY, m.p.x - CX);
     var x0 = CX + (DR1 + 4) * Math.cos(a), y0 = CY + (DR1 + 4) * Math.sin(a);
-    spokes[m.id] = { line: S('line', { x1: x0, y1: y0, x2: m.p.x, y2: m.p.y, stroke: '#24365c', 'stroke-width': 2, 'stroke-dasharray': '4 7' }, svg), x0: x0, y0: y0, x1: m.p.x, y1: m.p.y,
+    spokes[m.id] = { line: S('line', { x1: x0, y1: y0, x2: m.p.x, y2: m.p.y, stroke: LT.spoke, 'stroke-width': 2, 'stroke-dasharray': '4 7' }, svg), x0: x0, y0: y0, x1: m.p.x, y1: m.p.y,
       dot: S('circle', { r: 5, fill: COL.warn, opacity: 0 }, svg) };
   });
 
   var dial = { g: S('g', { class: 'hit', 'data-key': 'orchestre' }, svg), arcs: [] };
-  S('circle', { cx: CX, cy: CY, r: DR1 + 10, fill: '#0c1424', stroke: '#1b2a4a', 'stroke-width': 2 }, dial.g);
+  S('circle', { cx: CX, cy: CY, r: DR1 + 10, fill: LT.dialBg, stroke: LT.ring, 'stroke-width': 2 }, dial.g);
   STATES.forEach(function (n, i) {
     var a0 = -90 + i * 40 + 1.5, a1 = -90 + (i + 1) * 40 - 1.5;
-    dial.arcs.push(S('path', { d: arc(DR0, DR1, a0, a1), fill: '#1d2a47', stroke: '#0a101c', 'stroke-width': 1 }, dial.g));
+    dial.arcs.push(S('path', { d: arc(DR0, DR1, a0, a1), fill: LT.dialArc, stroke: LT.halo, 'stroke-width': 1 }, dial.g));
   });
   S('text', { x: CX, y: CY - 24, 'text-anchor': 'middle', style: 'font-size:10px;font-weight:800;letter-spacing:.14em', fill: COL.mute }, dial.g, 'ORCHESTRATEUR');
   var dialState = S('text', { x: CX, y: CY + 2, 'text-anchor': 'middle', style: 'font-size:15px;font-weight:800', fill: COL.text }, dial.g, '');
   S('text', { x: CX, y: CY + 22, 'text-anchor': 'middle', style: 'font-size:10.5px', fill: COL.mute }, dial.g, 'workflow déterministe');
   var dialStep = S('text', { x: CX, y: CY + 38, 'text-anchor': 'middle', style: 'font-size:10.5px', fill: COL.mute }, dial.g, '');
+
+  /* Bandeau des étapes du cycle de vie : même composant que dans les deux autres vues */
+  var phases = PharePlayer.phases($('states'), STATES, function (i) {
+    if (st.estop) return;
+    if (!st.run) startRun(st.sel || 'creation');
+    var r = st.run; if (!r) return;
+    for (var k = 0; k < r.steps.length; k++) if (r.steps[k].st === i) { seekTo(r.starts[k] / r.total); return; }
+  });
 
   /* ---------- Pictogrammes humains ---------- */
   function glyph(parent, x, y, label) {
@@ -381,7 +392,7 @@
     var body = S('g', { fill: COL.human }, g);
     S('circle', { cx: 0, cy: -6, r: 4.2 }, body);
     S('path', { d: 'M-8 3 a8 6 0 0 1 16 0 z' }, body);
-    var t = S('text', { y: 14, 'text-anchor': 'middle', style: 'font-size:8px;font-weight:800', fill: COL.human }, g, label);
+    var t = S('text', { y: 14, 'text-anchor': 'middle', style: 'font-size:9px;font-weight:800', fill: COL.human }, g, label);
     return { g: g, c: c, body: body, t: t };
   }
   var glyphs = {};
@@ -391,11 +402,11 @@
   function drawIcon(parent, name, color) {
     var g = S('g', { transform: 'translate(-82,-34) scale(1.17)', fill: 'none', stroke: color, 'stroke-width': 1.7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, parent);
     ICONS[name].forEach(function (d) { S('path', { d: d }, g); });
-    if (name === 'branch') [[7, 5], [7, 19], [17, 8]].forEach(function (c) { S('circle', { cx: c[0], cy: c[1], r: 2.4, fill: '#16213a' }, g); });
+    if (name === 'branch') [[7, 5], [7, 19], [17, 8]].forEach(function (c) { S('circle', { cx: c[0], cy: c[1], r: 2.4, fill: COL.card }, g); });
   }
   MODS.forEach(function (m) {
     var color = COL[m.type] || COL.mute;
-    var g = S('g', { class: 'hit', 'data-key': m.id, transform: 'translate(' + m.p.x + ',' + m.p.y + ')' }, svg);
+    var g = S('g', { class: 'hit', 'data-key': m.id, transform: 'translate(' + m.p.x + ',' + m.p.y + ') scale(' + K + ')' }, svg);
     if (m.id === 'sandbox') S('rect', { x: -MW / 2 - 7, y: -MH / 2 - 7, width: MW + 14, height: MH + 14, rx: 16, fill: 'none', stroke: COL.agent, 'stroke-width': 1.8, 'stroke-dasharray': '7 6', opacity: 0.75 }, g);
     var frame = S('rect', { class: 'frame', x: -MW / 2, y: -MH / 2, width: MW, height: MH, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, g);
     S('circle', { cx: -68, cy: -20, r: 21, fill: COL.deep, stroke: color, 'stroke-width': 2 }, g);
@@ -414,13 +425,27 @@
     var beam = m.type === 'guard' ? S('rect', { x: -MW / 2, y: -MH / 2 + 2, width: 4, height: MH - 4, fill: COL.guard, opacity: 0 }, g) : null;
     mods[m.id] = { g: g, frame: frame, pills: pills, prog: prog, prog2: prog2, beam: beam, tag: tag, color: color, def: m };
     (m.roles || []).forEach(function (role, k) {
-      glyphs[m.id + ':' + role] = glyph(svg, m.p.x + MW / 2 - 18 - 40 * ((m.roles.length - 1) - k), m.p.y - MH / 2 - 22, role);
+      glyphs[m.id + ':' + role] = glyph(svg, m.p.x + MW * K / 2 - 20 - 42 * ((m.roles.length - 1) - k), m.p.y - MH * K / 2 - 20, role);
     });
   });
 
   /* ---------- Coins : budget, routeur, skills, salle de contrôle ---------- */
-  var gauge = S('g', { class: 'hit', 'data-key': 'budget', transform: 'translate(110,116)' }, svg);
-  S('path', { d: 'M-58 0 A58 58 0 0 1 58 0', fill: 'none', stroke: '#1d2a47', 'stroke-width': 14 }, gauge);
+  /* Budget, salle de contrôle et légende sont ancrés au bord gauche visible de la scène (le schéma est centré : sur un écran large,
+     des marges apparaissent de chaque côté). La mention « valeurs fictives » est ancrée au bord droit. */
+  var cornerL = S('g', {}, svg), cornerR = S('g', {}, svg);
+  function layoutCorners() {
+    var r = svg.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var scale = Math.min(r.width / 1200, r.height / 720), visW = r.width / scale, extra = Math.max(0, (visW - 1200) / 2);
+    cornerL.setAttribute('transform', 'translate(' + (-extra).toFixed(1) + ',0)');
+    cornerR.setAttribute('transform', 'translate(' + extra.toFixed(1) + ',0)');
+    /* les liens modèles → cellule suivent les modèles, qui se sont rapprochés du bord droit */
+    if (typeof skillLink !== 'undefined') skillLink.line.setAttribute('x2', 1032 + extra);
+    if (rlines) ['A', 'B', 'I'].forEach(function (k, i) { rlines[k].line.setAttribute('x1', 930 + i * 85 + 40 + extra); });
+  }
+  if (window.ResizeObserver) new ResizeObserver(layoutCorners).observe(svg); else window.addEventListener('resize', layoutCorners);
+  var gauge = S('g', { class: 'hit', 'data-key': 'budget', transform: 'translate(84,72)' }, cornerL);
+  S('path', { d: 'M-58 0 A58 58 0 0 1 58 0', fill: 'none', stroke: LT.dialArc, 'stroke-width': 14 }, gauge);
   S('path', { d: 'M-58 0 A58 58 0 0 1 20.5 -54.5', fill: 'none', stroke: '#2b8a3e', 'stroke-width': 14 }, gauge);
   S('path', { d: 'M20.5 -54.5 A58 58 0 0 1 46.9 -34.1', fill: 'none', stroke: '#e8a500', 'stroke-width': 14 }, gauge);
   S('path', { d: 'M46.9 -34.1 A58 58 0 0 1 58 0', fill: 'none', stroke: '#c92a2a', 'stroke-width': 14 }, gauge);
@@ -429,7 +454,7 @@
   S('text', { y: 22, 'text-anchor': 'middle', style: 'font-size:13px;font-weight:800', fill: COL.text }, gauge, 'Budget de fabrication');
   var gaugeVal = S('text', { y: 38, 'text-anchor': 'middle', class: 'small-t' }, gauge, '');
 
-  var router = S('g', { class: 'hit', 'data-key': 'router', transform: 'translate(930,40)' }, svg);
+  var router = S('g', { class: 'hit', 'data-key': 'router', transform: 'translate(930,40)' }, cornerR);
   S('text', { x: 125, y: 1, 'text-anchor': 'middle', style: 'font-size:13px;font-weight:800', fill: COL.text }, router, 'Modèles d\'IA (hors cellule)');
   S('text', { x: 125, y: 16, 'text-anchor': 'middle', class: 'small-t' }, router, 'passerelle surveillée · pas d\'internet libre');
   var rpills = {}, rlines = {};
@@ -440,45 +465,48 @@
     var t2 = S('text', { x: 40, y: 34, 'text-anchor': 'middle', class: 'small-t' }, pg, MODELS[k].s);
     var strike = S('line', { x1: 6, y1: 38, x2: 74, y2: 6, stroke: COL.guard, 'stroke-width': 1.8, opacity: 0 }, pg);
     rpills[k] = { r: r, t1: t1, t2: t2, strike: strike };
-    rlines[k] = { line: S('line', { x1: 930 + i * 85 + 40, y1: 110, x2: MOD.sandbox.p.x - 45 + i * 45, y2: MOD.sandbox.p.y - MH / 2 - 8, stroke: COL.agent, 'stroke-width': 3, opacity: 0, 'stroke-dasharray': '5 5' }, svg),
+    rlines[k] = { line: S('line', { x1: 930 + i * 85 + 40, y1: 110, x2: MOD.sandbox.p.x - 45 + i * 45, y2: MOD.sandbox.p.y - MH * K / 2 - 6, stroke: COL.agent, 'stroke-width': 3, opacity: 0, 'stroke-dasharray': '5 5' }, svg),
       dot: S('circle', { r: 4.5, fill: COL.agent, opacity: 0 }, svg), i: i };
   });
 
-  var skillsTile = S('g', { class: 'hit', 'data-key': 'skills', transform: 'translate(1024,128)' }, svg);
-  S('rect', { width: 168, height: 166, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, skillsTile);
-  S('text', { x: 84, y: 22, 'text-anchor': 'middle', style: 'font-size:12.5px;font-weight:800', fill: COL.text }, skillsTile, 'Règles communes (skills)');
-  S('text', { x: 84, y: 38, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, 'catalogue signé · versionné · revu');
-  var skillsLabels = ['Connexion SSO', 'Règles IA', 'Design System', ''];
+  var skillsTile = S('g', { class: 'hit', 'data-key': 'skills', transform: 'translate(1032,132)' }, cornerR);
+  S('rect', { width: 162, height: 166, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, skillsTile);
+  S('text', { x: 81, y: 22, 'text-anchor': 'middle', style: 'font-size:12.5px;font-weight:800', fill: COL.text }, skillsTile, 'Règles communes (skills)');
+  S('text', { x: 81, y: 38, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, 'catalogue signé · versionné');
+  var skillsLabels = ['OIDC · SAML · LDAPS', 'Règles IA', 'Design System', ''];
   var skillChips = [0, 1, 2, 3].map(function (i) {
     var cg = S('g', { transform: 'translate(14,' + (50 + i * 26) + ')' }, skillsTile);
     var r = S('rect', { width: 140, height: 21, rx: 6, fill: COL.deep, stroke: COL.line, 'stroke-width': 1.5 }, cg);
     var t = S('text', { x: 70, y: 15, 'text-anchor': 'middle', style: 'font-size:11.5px;font-weight:700', fill: COL.text }, cg, skillsLabels[i]);
     return { r: r, t: t };
   });
-  var skillsFoot = S('text', { x: 84, y: 160, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, '');
+  var skillsFoot = S('text', { x: 81, y: 160, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, '');
+  /* Lien règles communes → cellule isolée : toujours dessiné (pointillés gris), coloré et animé quand la cellule charge ses règles */
+  var skillLink = { line: S('line', { x1: 1018, y1: 196, x2: 1032, y2: 196, stroke: LT.spoke, 'stroke-width': 3, 'stroke-dasharray': '5 5' }, svg),
+    dot: S('circle', { r: 4.5, fill: COL.agent, opacity: 0 }, svg) };
 
-  var salle = S('g', { class: 'hit', 'data-key': 'estop', transform: 'translate(14,172)' }, svg);
-  S('rect', { width: 176, height: 112, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, salle);
-  S('text', { x: 88, y: 22, 'text-anchor': 'middle', style: 'font-size:13px;font-weight:800', fill: COL.text }, salle, 'Salle de contrôle');
-  S('text', { x: 88, y: 38, 'text-anchor': 'middle', class: 'small-t' }, salle, 'RSSI · niveau · arrêt d\'urgence');
-  var salleGlyph = glyph(salle, 44, 76, 'RSSI');
+  var salle = S('g', { class: 'hit', 'data-key': 'estop', transform: 'translate(176,8)' }, cornerL);
+  S('rect', { width: 160, height: 112, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, salle);
+  S('text', { x: 80, y: 22, 'text-anchor': 'middle', style: 'font-size:13.5px;font-weight:800', fill: COL.text }, salle, 'Salle de contrôle');
+  S('text', { x: 80, y: 38, 'text-anchor': 'middle', class: 'small-t' }, salle, 'RSSI · arrêt d\'urgence');
+  var salleGlyph = glyph(salle, 38, 78, 'RSSI');
   var salleBtn = S('g', { 'data-action': 'estop', class: 'hit' }, salle);
-  S('circle', { cx: 120, cy: 76, r: 25, fill: '#f2c200', stroke: '#161616', 'stroke-width': 3 }, salleBtn);
-  var salleCap = S('circle', { cx: 120, cy: 74, r: 15, fill: '#d62828', stroke: '#7a1212', 'stroke-width': 2 }, salleBtn);
+  S('circle', { cx: 112, cy: 78, r: 25, fill: '#f2c200', stroke: '#161616', 'stroke-width': 3 }, salleBtn);
+  var salleCap = S('circle', { cx: 112, cy: 76, r: 15, fill: '#d62828', stroke: '#7a1212', 'stroke-width': 2 }, salleBtn);
 
-  var legend = S('g', { transform: 'translate(24,700)' }, svg);
+  var legend = S('g', { transform: 'translate(24,700)' }, cornerL);
   [['Humain', COL.human], ['Contrôle', COL.guard], ['Agent IA', COL.agent], ['Forge', COL.ext], ['Orchestration', COL.system]].forEach(function (l, i) {
     S('rect', { x: i * 108, y: -10, width: 12, height: 12, rx: 3, fill: l[1] }, legend);
     S('text', { x: i * 108 + 18, y: 0, class: 'small-t' }, legend, l[0]);
   });
-  S('text', { x: 1186, y: 704, 'text-anchor': 'end', class: 'small-t' }, svg, 'Valeurs fictives : simulation illustrative, aucune mesure réelle');
+  S('text', { x: 1186, y: 704, 'text-anchor': 'end', class: 'small-t' }, cornerR, 'Valeurs fictives : simulation illustrative, aucune mesure réelle');
 
   /* ---------- Colis ---------- */
   var packet = S('g', { opacity: 0 }, svg);
-  var pRect = S('rect', { x: -60, y: -13, width: 120, height: 26, rx: 7, fill: '#0a101c', stroke: COL.warn, 'stroke-width': 2.5 }, packet);
+  var pRect = S('rect', { x: -60, y: -13, width: 120, height: 26, rx: 7, fill: COL.card, stroke: COL.warn, 'stroke-width': 2.5 }, packet);
   var pText = S('text', { y: 4, 'text-anchor': 'middle', style: 'font-size:11.5px;font-weight:800', fill: COL.text }, packet, '');
   var pX = S('g', { opacity: 0 }, packet);
-  S('circle', { cx: 0, cy: -22, r: 10, fill: COL.guard, stroke: '#0a101c', 'stroke-width': 2 }, pX);
+  S('circle', { cx: 0, cy: -22, r: 10, fill: COL.guard, stroke: LT.halo, 'stroke-width': 2 }, pX);
   S('path', { d: 'M-4 -26 l8 8 M4 -26 l-8 8', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, pX);
 
   /* ---------- Logique de la fabrication ---------- */
@@ -509,7 +537,7 @@
     return { h: h, g: g };
   }
 
-  function presetName(id) { return id && PRESET[id] ? PRESET[id].name : 'Entrées personnalisées'; }
+  function presetName(id) { return id && PRESET[id] ? PRESET[id].name : 'Paramètres personnalisés'; }
 
   function startRun(presetId) {
     if (st.estop) { flash('Système à l\'arrêt : déverrouiller puis acquitter avant de relancer.'); return; }
@@ -520,7 +548,7 @@
     var steps = buildSteps(p), starts = [], acc = 0;
     steps.forEach(function (s) { starts.push(acc); acc += s.d; });
     var key = paramsKey(p), ph = pathHash(steps), ch = hash(String(Math.random()) + key);
-    st.run = { params: p, key: key, name: presetName(st.sel), steps: steps, starts: starts, total: acc, idx: 0, el: 0, ok: {}, hold: 0, waiting: false, waitNext: false, fin: false, logStart: 0, logIdx: -1, path: ph, content: ch };
+    st.run = { params: p, key: key, name: presetName(st.sel), steps: steps, starts: starts, total: acc, idx: 0, el: 0, ok: {}, hold: 0, waiting: false, fin: false, logStart: 0, logIdx: -1, path: ph, content: ch };
     st.logLines.push({ sep: true, x: st.run.name + ' · classe ' + p.cls + ' · ' + STACKS[p.stack].n });
     st.run.logStart = st.logLines.length;
     var prev = null;
@@ -531,22 +559,36 @@
     syncLog();
     st.dirty = true;
     refreshScen();
+    if (st.playing) showTransition();
   }
+  /* Fin de fabrication : les compteurs sont comptés une fois ; la fabrication terminée reste affichée (image finale, lecteur sur « Rejouer »)
+     jusqu'à ce qu'une autre démarre. endRun(true) interrompt ou remplace. */
   function endRun(aborted) {
     var r = st.run; if (!r) return;
-    var c = liveCounts(r);
-    st.hum += c.h; st.gates += c.g;
-    var last = r.steps[r.steps.length - 1];
-    if (aborted) { st.ko += 1; addLogLine(mmss(r.starts[r.idx] + r.el), 'SYSTÈME', 'Fabrication interrompue'); }
-    else if (last.end === 'ok') st.ok += 1;
-    else if (last.end === 'part') { st.ok += 1; st.ko += 1; }
-    else st.ko += 1;
-    st.run = null; st.idle = 0; st.dirty = true;
+    if (!r.done) {
+      var c = liveCounts(r);
+      st.hum += c.h; st.gates += c.g;
+      var last = r.steps[r.steps.length - 1];
+      if (aborted) { st.ko += 1; addLogLine(mmss(r.starts[r.idx] + r.el), 'SYSTÈME', 'Fabrication interrompue'); }
+      else if (last.end === 'ok') st.ok += 1;
+      else if (last.end === 'part') { st.ok += 1; st.ko += 1; }
+      else st.ko += 1;
+    }
+    st.idle = 0; st.dirty = true;
+    if (aborted) st.run = null;
+    else { r.done = true; if (!$('demo').checked) setPlaying(false); }
+  }
+  /* Une fabrication terminée qu'on veut rejouer, avancer ou parcourir repart du début avec les mêmes paramètres */
+  function reviveIfDone() {
+    if (!st.run || !st.run.done) return false;
+    if (st.lastParams) st.params = clone(st.lastParams);
+    startRun(null);
+    return true;
   }
   function advance() {
-    var r = st.run; if (!r) return;
+    var r = st.run; if (!r || r.done) return;
     if (r.idx + 1 >= r.steps.length) { r.fin = true; endRun(false); return; }
-    r.idx += 1; r.el = 0; r.waiting = false; r.waitNext = false; r.hold = 0;
+    r.idx += 1; r.el = 0; r.waiting = false; r.hold = 0;
     syncLog();
     st.dirty = true;
   }
@@ -554,15 +596,16 @@
     var r = st.run; if (!r || !r.waiting) return;
     r.ok[r.idx] = true; r.waiting = false; r.hold = 0;
     st.dirty = true;
-    if (st.stepmode) r.waitNext = true; else advance();
+    advance();
   }
   function seekTo(frac) {
+    reviveIfDone();
     var r = st.run; if (!r) { startRun(st.sel || 'creation'); r = st.run; if (!r) return; }
     var t = clamp(frac, 0, 0.9999) * r.total, idx = 0;
     for (var i = 0; i < r.steps.length; i++) if (r.starts[i] <= t) idx = i;
     for (var j = 0; j < idx; j++) if (r.steps[j].human) r.ok[j] = true;
     r.idx = idx; r.el = clamp(t - r.starts[idx], 0, r.steps[idx].d);
-    r.waiting = false; r.waitNext = false; r.hold = 0;
+    r.waiting = false; r.hold = 0;
     syncLog(); st.dirty = true;
   }
 
@@ -570,34 +613,33 @@
     if (st.estop || !st.playing) return;
     st.clock += dt;
     var r = st.run;
-    if (!r) {
+    if (!r || r.done) {
       if ($('demo').checked) {
         st.idle += dt;
         if (st.idle > 2.5) {
-          if (st.demoIdx >= DEMO.length) { $('demo').checked = false; st.demoIdx = 0; flash('Démo terminée : choisis un scénario ou relance la démo automatique.'); }
+          if (st.demoIdx >= DEMO.length) { $('demo').checked = false; st.demoIdx = 0; setPlaying(false); flash('Démo terminée : choisis un scénario ou relance la démo automatique.'); }
           else { st.params = defaults(); startRun(DEMO[st.demoIdx]); st.demoIdx += 1; }
         }
       }
       return;
     }
+    if (st.trans > 0) { st.trans -= dt; return; }
     if (r.waiting) { if ($('autohuman').checked) { r.hold += dt; if (r.hold >= 1.5) approve(); } return; }
-    if (r.waitNext) return;
     var s = r.steps[r.idx];
     r.el += dt * st.speed;
     if (r.el >= s.d) {
       r.el = s.d;
       if (s.human && !r.ok[r.idx]) { r.waiting = true; r.hold = 0; st.dirty = true; }
-      else if (st.stepmode) r.waitNext = true;
       else advance();
     }
   }
 
   /* ---------- Rendu de la scène ---------- */
   var PILL = {
-    idle: ['#0e1626', '#2a3957', '#6b7a96'],
-    run: ['#3d2f00', COL.warn, '#ffe9a6'],
-    ok: ['#0f3320', COL.ok, '#b8f2c6'],
-    ko: ['#4a1414', COL.guard, '#ffc9c9'],
+    idle: [COL.deep, COL.line, LT.idleInk],
+    run: [LT.runFill, COL.warn, '#7a5200'],
+    ok: [LT.doneFill, COL.ok, '#1e6b30'],
+    ko: [LT.koFill, COL.guard, '#8f1d1d'],
   };
   function setPill(p, state) {
     var c = PILL[state];
@@ -609,7 +651,7 @@
   function setGlyph(g, state, stopped) {
     var col = state === 'done' ? COL.ok : COL.human;
     g.c.setAttribute('stroke', col);
-    g.c.setAttribute('fill', state === 'wait' ? '#4a2f08' : (state === 'done' ? '#0f3320' : COL.deep));
+    g.c.setAttribute('fill', state === 'wait' ? LT.waitFill : (state === 'done' ? LT.doneFill : COL.deep));
     g.body.setAttribute('fill', col); g.t.setAttribute('fill', col);
     g.g.setAttribute('class', state === 'wait' && !stopped ? 'pulse' : '');
     g.g.setAttribute('opacity', state === 'idle' ? 0.65 : 1);
@@ -624,13 +666,14 @@
 
     var cur = s ? s.st : -1;
     dial.arcs.forEach(function (a, i) {
-      var f = '#1d2a47';
+      var f = LT.dialArc;
       if (r) {
-        if (i < cur) f = '#4c3c9b';
+        if (i < cur) f = LT.dialDone;
         else if (i === cur) f = s.stc === 'x' ? COL.guard : (s.end === 'ok' && r.el >= s.d ? COL.ok : COL.warn);
       }
       a.setAttribute('fill', f);
     });
+    phases.paint(cur, r ? STATES.map(function (n, i) { return r.steps.some(function (x) { return x.st === i; }); }) : null);
     dialState.textContent = s ? (s.stl || STATES[s.st]) : 'En attente';
     dialState.setAttribute('fill', s && s.stc === 'x' ? COL.guard : COL.text);
     dialStep.textContent = r ? 'étape ' + (r.idx + 1) + ' / ' + r.steps.length : 'aucune fabrication';
@@ -638,7 +681,7 @@
     MODS.forEach(function (m) {
       var on = s && s.m === m.id && !stopped;
       var sp = spokes[m.id];
-      sp.line.setAttribute('stroke', on ? mods[m.id].color : '#24365c');
+      sp.line.setAttribute('stroke', on ? mods[m.id].color : LT.spoke);
       sp.line.setAttribute('stroke-width', on ? 3 : 2);
       var u = ((st.clock * 0.7) % 1);
       sp.dot.setAttribute('opacity', on ? 1 : 0);
@@ -724,12 +767,12 @@
       P.t1.textContent = MODELS[key].n;
       var byClass = ci.models.indexOf(key) >= 0, byProject = p.allow[key];
       var state = !byClass || !byProject ? 'blk' : (down[key] ? 'ko' : (active[key] ? 'act' : 'idle'));
-      P.r.setAttribute('fill', state === 'act' ? '#0d3a5e' : (state === 'ko' ? '#4a1414' : COL.deep));
-      P.r.setAttribute('stroke', state === 'act' ? COL.agent : (state === 'ko' ? COL.guard : (state === 'blk' ? '#3a4560' : COL.line)));
-      P.t1.setAttribute('fill', state === 'blk' ? '#5d6b86' : COL.text);
+      P.r.setAttribute('fill', state === 'act' ? LT.actFill : (state === 'ko' ? LT.koFill : COL.deep));
+      P.r.setAttribute('stroke', state === 'act' ? COL.agent : (state === 'ko' ? COL.guard : (state === 'blk' ? LT.blkLine : COL.line)));
+      P.t1.setAttribute('fill', state === 'blk' ? LT.blkInk : COL.text);
       P.t2.textContent = state === 'act' ? active[key] : (state === 'blk' ? (byClass ? 'désactivé' : 'interdit (classe)') : (state === 'ko' ? 'indisponible' : MODELS[key].s));
       P.strike.setAttribute('opacity', state === 'blk' || state === 'ko' ? 1 : 0);
-      P.strike.setAttribute('stroke', state === 'ko' ? COL.guard : '#5d6b86');
+      P.strike.setAttribute('stroke', state === 'ko' ? COL.guard : LT.blkInk);
       var on = state === 'act' && !stopped;
       L.line.setAttribute('opacity', on ? 0.9 : 0);
       var u = ((st.clock * 0.9 + L.i * 0.3) % 1);
@@ -742,19 +785,26 @@
     skillsFoot.textContent = 'Pile : ' + stack.n;
     var skillsOn = r && s && s.skills && !stopped;
     var loaded = r && lastOf.sandbox !== undefined;
+    skillLink.line.setAttribute('stroke', loaded ? COL.agent : LT.spoke);
+    skillLink.line.setAttribute('stroke-width', skillsOn ? 4 : 3);
+    var lx1 = parseFloat(skillLink.line.getAttribute('x1')), lx2 = parseFloat(skillLink.line.getAttribute('x2')), lu = (st.clock * 0.9) % 1;
+    skillLink.dot.setAttribute('opacity', skillsOn ? 1 : 0);
+    skillLink.dot.setAttribute('cx', lx2 + (lx1 - lx2) * lu); skillLink.dot.setAttribute('cy', 196);
     skillChips.forEach(function (c, i) {
       if (i === 3) c.t.textContent = stack.skills.join(' · ');
       var pulse = skillsOn && Math.floor(st.clock * 1.4) % 4 === i;
-      c.r.setAttribute('fill', pulse ? '#0d3a5e' : COL.deep);
+      c.r.setAttribute('fill', pulse ? LT.actFill : COL.deep);
       c.r.setAttribute('stroke', loaded ? COL.agent : COL.line);
-      c.t.setAttribute('fill', loaded ? COL.text : '#6b7a96');
+      c.t.setAttribute('fill', loaded ? COL.text : LT.blkInk);
     });
 
-    var lc = r ? liveCounts(r) : { h: 0, g: 0 };
+    var lc = r && !r.done ? liveCounts(r) : { h: 0, g: 0 };
     $('k-ok').textContent = st.ok; $('k-ko').textContent = st.ko; $('k-h').textContent = st.hum + lc.h; $('k-g').textContent = st.gates + lc.g;
 
     renderCaption(r, s);
-    $('clock').textContent = r ? 'T+' + mmss(r.starts[r.idx] + r.el) : 'T+00:00';
+    PharePlayer.setClock(r ? r.starts[r.idx] + r.el : 0, r ? r.total : 0);
+    PharePlayer.setState(st.playing ? 'playing' : (r && r.done ? 'ended' : 'paused'));
+    PharePlayer.blockCta(!!st.estop);
     if (document.activeElement !== $('scrub')) $('scrub').value = r ? Math.round(((r.starts[r.idx] + r.el) / r.total) * 1000) : 0;
     var line = r ? r.name + ' · ' + p.cls + ' · ' + STACKS[p.stack].n + ' · ' + p.tickets + ' ticket(s) · modèles : ' + (effectiveModels(p).map(function (k) { return MODELS[k].n; }).join(', ') || 'aucun') : 'Usine logicielle sous contrôle : orchestrateur déterministe, contrôles, humains aux points de décision';
     if ($('run-line').textContent !== line) $('run-line').textContent = line;
@@ -765,14 +815,14 @@
   var capKey = '';
   function renderCaption(r, s) {
     var waiting = r && r.waiting, auto = $('autohuman').checked;
-    var key = r ? [r.key, r.idx, waiting, auto, r.waitNext, st.flash].join('|') : 'idle|' + st.flash + '|' + (st.estop || '');
+    var key = r ? [r.key, r.idx, waiting, auto, st.flash].join('|') : 'idle|' + st.flash + '|' + (st.estop || '');
     if (key === capKey) return;
     capKey = key;
     var c = $('caption');
     c.textContent = '';
     function span(cls, text) { var e = H('span', { class: cls, text: text }); c.appendChild(e); return e; }
     if (st.flash) { span('title', st.flash); return; }
-    if (!r) { span('title', 'Choisis un scénario, règle les entrées, ou laisse la démonstration tourner.'); return; }
+    if (!r) { span('title', 'Appuie sur Lecture pour lancer la démonstration, ou choisis un scénario.'); return; }
     span('step', 'Étape ' + (r.idx + 1) + ' / ' + r.steps.length);
     var chip = span('chip', MOD[s.m].title); chip.style.borderColor = COL[MOD[s.m].type];
     span('title', s.t);
@@ -788,7 +838,7 @@
         b.addEventListener('click', approve);
         w.appendChild(b);
       }
-    } else if (r.waitNext) span('wait', 'Pas à pas : « Étape suivante » pour continuer');
+    }
   }
 
   var TAGC = { HUMAIN: COL.human, CONTRÔLE: COL.guard, AGENT: COL.agent, GITLAB: COL.ext, ORCH: COL.system, 'SYSTÈME': COL.mute, RSSI: COL.guard };
@@ -816,12 +866,17 @@
     var host = $('scen-list');
     PRESETS.forEach(function (pr) {
       var b = H('button', { type: 'button', class: 'scen', 'data-id': pr.id }, [H('b', { text: pr.name }), H('span', { text: pr.short })]);
-      b.addEventListener('click', function () { startRun(pr.id); });
+      b.addEventListener('click', function () { startRun(pr.id); setPlaying(false); });
       host.appendChild(b);
+    });
+    /* Même sélecteur de scénario que dans les deux autres vues (intégré au lecteur) : le scénario se charge en pause */
+    PharePlayer.scenarios([{ value: '', label: 'Paramètres personnalisés' }].concat(PRESETS.map(function (pr) { return { value: pr.id, label: pr.name }; })), function (v) {
+      if (v) { startRun(v); setPlaying(false); } else PharePlayer.setScenario(st.sel || '');
     });
   }
   function refreshScen() {
     Array.prototype.forEach.call($('scen-list').children, function (b) { b.classList.toggle('on', b.getAttribute('data-id') === st.sel); });
+    PharePlayer.setScenario(st.sel || '');
   }
 
   var paramsBuilt = false, ctl = {};
@@ -889,11 +944,11 @@
     var p = st.params, ci = CLASSES[p.cls], eff = effectiveModels(p);
     var set = function (id, txt) { var e = $(id); if (e) e.textContent = txt; };
     set('cls-text', ci.txt);
-    set('stack-text', 'Règles chargées : connexion SSO (SAML / OIDC), règles IA, design system + ' + STACKS[p.stack].skills.join(', ') + '. L\'orchestration, les contrôles et les modèles ne changent pas.');
+    set('stack-text', 'Règles chargées : authentification (OIDC / SAML / LDAPS), règles IA, design system + ' + STACKS[p.stack].skills.join(', ') + '. L\'orchestration, les contrôles et les modèles ne changent pas.');
     set('esc-text', p.esc === 'reprise' ? 'L\'ingénieur plateforme diagnostique et relance (boucle, budget, modèle) dans le périmètre du plan figé ; les échecs de contrôle de sortie restent des arrêts.' : 'Toute escalade arrête la fabrication (cellule détruite, clé révoquée).');
     set('allow-text', 'Effectifs (classe ∩ projet) : ' + (eff.length ? eff.map(function (k) { return MODELS[k].n; }).join(', ') : 'aucun, refus par défaut') + '.');
     set('policy-text', p.policy === 'duo' ? (eff.length >= 2 ? 'Tests et relecture sur ' + MODELS[eff[0]].n + ', implémentation sur ' + MODELS[eff[1]].n + ' ; en parallèle dès 2 tickets.' : 'Deux modèles requis : un seul est autorisé, retour à un modèle unique.') : 'Les trois rôles utilisent le même modèle (indépendance réduite).');
-    set('derived', 'Isolation ' + ci.iso + ' · ' + ci.appr + ' approbateur(s) · budget ' + CAPS[p.cap].n + ' · ' + p.tickets + ' ticket(s). Les entrées s\'appliquent au prochain lancement.');
+    set('derived', 'Isolation ' + ci.iso + ' · ' + ci.appr + ' approbateur(s) · budget ' + CAPS[p.cap].n + ' · ' + p.tickets + ' ticket(s). Les paramètres s\'appliquent au prochain lancement.');
   }
 
   function renderHumans() {
@@ -969,7 +1024,7 @@
     entree: { t: 'Contrôle d\'entrée', w: 'Avant tout calcul coûteux : complétude, détection d\'injection dans les tickets et maquettes, contrôle déterministe des données personnelles, classification C0 à C3 et vérification qu\'un modèle est autorisé. Un dossier refusé revient avec son motif.', h: 'Aucune validation humaine : le PO ou le designer corrige et redépose.', k: 'Règles en code et classifieurs en services séparés, fail-closed. Le contenu externe est une donnée : il ne confère aucune autorité (invariant 2).', usine: 12, tech: 1 },
     plan: { t: 'Planification et go', w: 'L\'usine produit seule le plan et les intentions de test, validés par des règles déterministes. Le chef de projet lit le plan chiffré et signe le go : c\'est le seul acte humain. Le run est lié à un dossier figé immuable.', h: 'Chef de projet : go signé, jamais approbateur de la MR. Le PO ne valide pas le plan ; un validateur d\'intentions reste possible en option par projet (ADR 0006).', k: 'Plan-then-execute, snapshot scellé (backlog, maquettes, plan, classe, SHA, versions), budget estimé.', usine: 22, tech: 2 },
     sandbox: { t: 'Cellule isolée et agents', w: 'Trois rôles d\'agents : auteur des tests, implémenteur, relecteur consultatif. Tests gelés avant l\'implémentation, aucun secret longue durée, sortie réseau en liste blanche, écriture vers la forge uniquement par l\'orchestrateur via un patch. Les rôles peuvent utiliser des modèles différents, en parallèle.', h: 'Personne n\'intervient ; le RSSI garde l\'arrêt d\'urgence.', k: 'Isolation N2 minimum, N3 pour C3 (Kubernetes), boucle d\'agent interne derrière AgentRunner, modèles via LlmProvider, skills selon la pile.', usine: 50, tech: 5 },
-    skills: { t: 'Service commun de skills', w: 'Service commun d\'entreprise, catalogue signé, versionné et revu : socle d\'authentification SAML / OIDC, skills IAG (IA générative), design system, skills de pile par langage. Un projet demande des skills ; l\'orchestrateur résout et épingle les versions. Changer de langage change les skills de pile, pas l\'orchestration ni les gardes.', h: 'Des experts rédigent et relisent les skills ; propriétaire du service commun à nommer.', k: 'Frontière de confiance (signature, revue, versionnage), consommée par interface (ADR 0006) ; une pile hors gabarit du MVP exige sa qualification (illustratif ici).', usine: 50, tech: 6 },
+    skills: { t: 'Service commun de skills', w: 'Service commun d\'entreprise, catalogue signé, versionné et revu : socle d\'authentification OIDC / SAML / LDAPS, skills IAG (IA générative), design system, skills de pile par langage. Un projet demande des skills ; l\'orchestrateur résout et épingle les versions. Changer de langage change les skills de pile, pas l\'orchestration ni les gardes.', h: 'Des experts rédigent et relisent les skills ; propriétaire du service commun à nommer.', k: 'Frontière de confiance (signature, revue, versionnage), consommée par interface (ADR 0006) ; une pile hors gabarit du MVP exige sa qualification (illustratif ici).', usine: 50, tech: 6 },
     sortie: { t: 'Contrôle de sortie', w: 'Contrôle indépendant du générateur : tests gelés, mutation, analyse statique, secrets, politique de diff. Un échec déclenche une autocorrection bornée, sinon escalade.', h: 'Aucun : tout est consigné dans le dossier de preuves.', k: 'Gate indépendant (invariant 3), dossier de preuves attaché à la MR.', usine: 66, tech: 8 },
     forge: { t: 'Forge GitLab', w: 'PHARE ouvre la Merge Request avec son dossier de preuves ; le pipeline CI s\'exécute ; un ingénieur relit et approuve selon les règles d\'approbation GitLab. PHARE n\'a ni droit d\'approbation ni droit de fusion.', h: 'Ingénieur logiciel : relecteur et approbateur ; deux approbateurs distincts en renforcé (C3).', k: 'GitLab payant interne, règles d\'approbation, vérification du cadre de revue au préflight (faisabilité à vérifier), invariant 6.', usine: 80, tech: 10 },
     prod: { t: 'Fusion et production', w: 'Fusion et déploiement relèvent de GitLab ; PHARE observe l\'état Fusionné sans le piloter.', h: 'Selon les règles de l\'entreprise, dans GitLab.', k: 'Environnements protégés de GitLab, observation par API et webhooks.', usine: 88, tech: 11 },
@@ -981,8 +1036,8 @@
   function showInfo(key) {
     var d = INFO[key]; if (!d) return;
     $('i-title').textContent = d.t; $('i-what').textContent = d.w; $('i-human').textContent = d.h; $('i-tech').textContent = d.k;
-    $('x-usine').href = 'usine.html#t=' + d.usine;
-    $('x-tech').href = 'index.html#creation/' + d.tech;
+    $('x-usine').href = 'index.html#t=' + d.usine;
+    $('x-tech').href = 'processus.html#creation/' + d.tech;
     setPane('p-info');
   }
   function setPane(id) {
@@ -1004,38 +1059,67 @@
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
     t.addEventListener('click', function () { setPane(t.getAttribute('data-pane')); });
   });
-  Array.prototype.forEach.call(document.querySelectorAll('[data-speed]'), function (b) {
-    b.addEventListener('click', function () {
-      st.speed = parseFloat(b.getAttribute('data-speed'));
-      Array.prototype.forEach.call(document.querySelectorAll('[data-speed]'), function (o) { o.classList.toggle('on', o === b); });
-    });
-  });
+  PharePlayer.onSpeed(function (v) { st.speed = v; });
   var flashTimer = 0;
   $('demo').addEventListener('change', function () { if ($('demo').checked) { st.demoIdx = 0; st.idle = 0; } });
   function flash(msg) { st.flash = msg; clearTimeout(flashTimer); flashTimer = setTimeout(function () { st.flash = ''; }, 3500); }
-  function setPlaying(p) { st.playing = p; $('play').textContent = p ? 'Pause' : 'Lecture'; }
-  $('play').addEventListener('click', function () { setPlaying(!st.playing); });
+  function setPlaying(p) {
+    var was = st.playing;
+    st.playing = p;
+    PharePlayer.setState(p ? 'playing' : 'paused');
+    /* Mise en route d'une fabrication au tout début : rappel du scénario */
+    if (p && !was && st.run && !st.run.done && st.run.idx === 0 && st.run.el < 0.05 && !st.run.waiting) showTransition();
+  }
+
+  /* Mini-transition de rappel du scénario, comme dans la chaîne de production : la fabrication attend la fin de l'écran-titre */
+  var transTimer = 0, transHide = 0;
+  function showTransition() {
+    var r = st.run, card = $('trans-card'); if (!r || !card) return;
+    var pr = st.sel && PRESET[st.sel] ? PRESET[st.sel] : null, p = r.params;
+    $('t-count').textContent = pr ? 'Scénario ' + (PRESETS.indexOf(pr) + 1) + ' sur ' + PRESETS.length : 'Paramètres personnalisés';
+    $('t-title').textContent = pr ? pr.name : 'Fabrication sur mesure';
+    $('t-sub').textContent = pr ? pr.short : 'Classe ' + p.cls + ' · ' + STACKS[p.stack].n + ' · ' + p.tickets + ' ticket(s)';
+    clearTimeout(transTimer); clearTimeout(transHide);
+    card.classList.remove('on');
+    card.hidden = false;
+    void card.offsetWidth;
+    card.classList.add('on');
+    st.trans = 1.8;
+    transTimer = setTimeout(function () { card.classList.remove('on'); }, 1700);
+    transHide = setTimeout(function () { card.hidden = true; }, 2100);
+  }
+  $('play').addEventListener('click', function () {
+    /* Lecture sans fabrication en cours : on en lance une (la démo automatique si elle est cochée, sinon le scénario choisi) */
+    if (!st.playing && !st.estop && reviveIfDone()) { /* rejouer la fabrication terminée */ }
+    else if (!st.playing && !st.run && !st.estop) {
+      if ($('demo').checked) { st.demoIdx = 0; st.params = defaults(); startRun(DEMO[0]); st.demoIdx = 1; }
+      else startRun(st.sel || 'creation');
+    }
+    setPlaying(!st.playing);
+  });
   function prev() {
-    var r = st.run; if (!r || st.estop) return;
-    if (!st.stepmode && r.el > 1.5 && !r.waiting) { r.el = 0; r.waitNext = false; r.hold = 0; return; }
-    if (r.idx === 0) { r.el = 0; r.waiting = false; r.waitNext = false; r.hold = 0; return; }
+    if (st.estop) return;
+    if (reviveIfDone()) return;
+    var r = st.run; if (!r) return;
+    if (r.el > 1.5 && !r.waiting) { r.el = 0; r.hold = 0; return; }
+    if (r.idx === 0) { r.el = 0; r.waiting = false; r.hold = 0; return; }
     r.idx -= 1; r.waiting = false; r.hold = 0; r.fin = false;
     Object.keys(r.ok).forEach(function (k) { if (parseInt(k, 10) >= r.idx) delete r.ok[k]; });
     for (var j = 0; j < r.idx; j++) if (r.steps[j].human) r.ok[j] = true;
-    if (st.stepmode) { r.el = r.steps[r.idx].d; if (r.steps[r.idx].human) r.ok[r.idx] = true; r.waitNext = true; } else { r.el = 0; r.waitNext = false; }
+    r.el = 0;
     syncLog(); st.dirty = true;
   }
   $('prev').addEventListener('click', prev);
   $('next').addEventListener('click', function () {
     if (st.estop) return;
+    reviveIfDone();
     var r = st.run;
     if (!r) { startRun(st.sel || null); return; }
     if (r.waiting) approve(); else advance();
   });
-  $('stepmode').addEventListener('change', function (e) { st.stepmode = e.target.checked; if (st.run && !st.stepmode) st.run.waitNext = false; });
   $('scrub').addEventListener('input', function (e) { if (!st.estop) seekTo(parseFloat(e.target.value) / 1000); });
-  $('launch').addEventListener('click', function () { startRun(null); });
-  $('replay').addEventListener('click', function () { if (st.lastParams) st.params = clone(st.lastParams); startRun(null); });
+  $('launch').addEventListener('click', function () { startRun(null); setPlaying(true); });
+  $('replay').addEventListener('click', function () { if (st.lastParams) st.params = clone(st.lastParams); startRun(null); setPlaying(true); });
   document.addEventListener('keydown', function (e) {
     if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (e.key === ' ' && e.target.tagName !== 'BUTTON') { e.preventDefault(); setPlaying(!st.playing); }
@@ -1115,10 +1199,13 @@
     if (q.tab) setPane({ scen: 'p-scen', params: 'p-params', humans: 'p-humans', orch: 'p-orch', log: 'p-log', info: 'p-info', gloss: 'p-gloss' }[q.tab] || 'p-scen');
   }
 
+  layoutCorners();
+  PharePlayer.cta(document.querySelector('.scene'), 'Lancer la simulation');
   buildScenList();
   buildParams();
   refreshScen();
   paintEstop();
+  setPlaying(false);   /* le lecteur démarre en pause : l'utilisateur choisit de lancer */
   fromHash();
   render();
   requestAnimationFrame(frame);

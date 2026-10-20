@@ -14,14 +14,14 @@ Ce guide publie le prototype `prototype_2D/` sur un serveur Apache 2.4 afin de l
 - **Aucun script ni gestionnaire d'événement en ligne** dans les pages ; tous les liens sont **relatifs**, donc le site fonctionne à la racine d'un domaine comme dans un sous-chemin (`/phare-prototype/`).
 - Les scripts posent des attributs `style` sur des éléments SVG : la politique de sécurité de contenu (§5) doit donc autoriser les styles en ligne.
 
-Fichiers à publier (11) :
+Fichiers à publier (13) :
 
 | Fichier | Rôle |
 |---|---|
-| `index.html`, `style.css`, `app.js`, `data.js` | Vue technique |
+| `index.html`, `usine.css`, `usine.js` | Chaîne de production (page d'accueil) |
 | `simulateur.html`, `simulateur.css`, `simulateur.js` | Simulateur |
-| `usine.html`, `usine.css`, `usine.js` | Chaîne de production |
-| `nav.css` | Barre de navigation commune |
+| `processus.html`, `style.css`, `app.js`, `data.js` | Vue processus |
+| `shell.css`, `shell.js`, `phare_icon.svg` | Barre de navigation, lecteur et bouton de lancement communs aux trois vues ; logo PHARE (aussi icône d'onglet) |
 
 À **ne pas** publier : `README.md`, ce guide, et les fichiers du dépôt (`.git`, `.github`, `.gitignore`, `.gitattributes`).
 
@@ -39,7 +39,7 @@ Fichiers à publier (11) :
 |---|---|---|
 | Qui peut ouvrir le site ? | Le prototype décrit la posture de sécurité de PHARE (gardes, niveaux de confidentialité, arrêt d'urgence). Il ne contient aucune donnée réelle, mais c'est un document de conception. | Réseau interne uniquement, ou authentification (§4). **À décider.** |
 | Quelle URL ? | Nom de domaine ou sous-chemin. | `https://phare-proto.<domaine interne>/` **(à décider)** |
-| Quelle page d'accueil ? | `index.html` est la **vue technique**, pas la plus parlante pour un public large. | `usine.html` (visite guidée) ou `simulateur.html`, via `DirectoryIndex` (§4). **À décider.** |
+| Quelle page d'accueil ? | **Tranché** : `index.html` est la chaîne de production (visite guidée), la vue la plus accessible. | Rien à configurer : `index.html` est la page par défaut d'Apache (`DirectoryIndex`, §4). |
 
 ## 3. Installer les fichiers
 
@@ -93,8 +93,8 @@ Fichier `/etc/apache2/sites-available/phare-prototype.conf`. Les noms de domaine
     <Directory /var/www/phare-prototype/current>
         Options -Indexes
         AllowOverride None
-        # Page d'accueil au choix : usine.html, simulateur.html ou index.html
-        DirectoryIndex usine.html
+        # Page d'accueil : la chaîne de production
+        DirectoryIndex index.html
 
         # Accès : réseau interne (exemple, à adapter). Voir §4.3 pour l'authentification.
         Require ip 10.0.0.0/8 192.168.0.0/16
@@ -148,7 +148,7 @@ Require valid-user
 
 - **Sous-chemin** (`https://serveur/phare-prototype/`) : remplacer `DocumentRoot` par `Alias /phare-prototype /var/www/phare-prototype/current` et reprendre le bloc `<Directory>` à l'identique. Les liens relatifs du prototype fonctionnent sans modification.
 - **RHEL, Rocky, AlmaLinux** : le service s'appelle `httpd` ; la configuration va dans `/etc/httpd/conf.d/phare-prototype.conf` ; les modules `headers` et `deflate` sont généralement chargés par défaut (à vérifier) ; pas de `a2enmod` ; contrôle avec `httpd -t` ; ajouter le contexte SELinux si nécessaire (`chcon -R -t httpd_sys_content_t /var/www/phare-prototype`).
-- **Windows** (Apache Lounge, XAMPP) : copier les 11 fichiers dans un dossier servi, activer `mod_headers` et `mod_deflate` dans `httpd.conf`, adapter les chemins. Convient pour une démonstration locale, pas pour un partage durable.
+- **Windows** (Apache Lounge, XAMPP) : copier les 13 fichiers dans un dossier servi, activer `mod_headers` et `mod_deflate` dans `httpd.conf`, adapter les chemins. Convient pour une démonstration locale, pas pour un partage durable.
 
 ## 5. Pourquoi ces en-têtes
 
@@ -167,23 +167,24 @@ Ajouter `Strict-Transport-Security` (HSTS) **uniquement** quand le HTTPS est dé
 **Contrôle des fichiers** (remplacer `HOTE`) :
 
 ```bash
-for f in index.html simulateur.html usine.html nav.css style.css simulateur.css usine.css app.js data.js simulateur.js usine.js; do
+for f in index.html simulateur.html processus.html phare_icon.svg shell.css style.css simulateur.css usine.css shell.js app.js data.js simulateur.js usine.js; do
   printf '%-16s ' "$f"; curl -s -o /dev/null -w '%{http_code}\n' "https://HOTE/$f"
 done
-curl -sI https://HOTE/usine.js | grep -i 'content-type\|cache-control\|content-security\|content-encoding'
+curl -sI https://HOTE/shell.js | grep -i 'content-type\|cache-control\|content-security\|content-encoding'
 ```
 
 Attendu : `200` pour chaque fichier, un type `text/javascript` ou `application/javascript` pour les `.js`, l'en-tête `Cache-Control: no-cache`, l'en-tête `Content-Security-Policy`.
 
 **Contrôle dans un navigateur**, console ouverte (touche F12) :
 
-1. `https://HOTE/` : la chaîne de production démarre et enchaîne les versions.
-2. Sélectionner **Version : Ticket piégé** : un écran-titre apparaît, puis la visite repart.
+1. `https://HOTE/` : la chaîne de production attend en pause ; après lecture, elle enchaîne seule les scénarios.
+2. Sélectionner **Scénario : Ticket piégé** : un écran-titre apparaît, puis la visite repart.
 3. `https://HOTE/simulateur.html#s=injection` : le scénario s'ouvre ; la démo automatique tourne ou s'arrête selon la case cochée.
-4. `https://HOTE/index.html#creation/5` : la vue technique s'ouvre à l'étape 5.
-5. Les trois liens de la barre du haut mènent aux trois vues.
-6. **Aucune erreur** dans la console, en particulier aucune ligne `Content Security Policy`.
-7. Le bouton **Plein écran** (chaîne de production) fonctionne.
+4. `https://HOTE/processus.html#creation/5` : la vue processus s'ouvre à l'étape 5.
+5. Les trois liens de la barre du haut mènent aux trois vues, et la barre est identique sur chacune (marque PHARE à gauche).
+6. Dans chaque vue, le lecteur démarre en pause et propose précédent, lecture, suivant, curseur, vitesses ×1, ×2, ×4, choix du scénario et plein écran, aux mêmes endroits.
+7. **Aucune erreur** dans la console, en particulier aucune ligne `Content Security Policy`.
+8. Le bouton **Plein écran** (chaîne de production) fonctionne.
 
 ## 7. Mettre à jour
 
