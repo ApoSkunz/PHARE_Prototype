@@ -67,7 +67,7 @@
 
 /* ---------- Commandes à droite du lecteur : scénario, option propre à la vue, plein écran ---------- */
 .player .player-extras select, .player .player-extras .pfull { padding: 6px 12px; border: 2px solid var(--sh-line); border-radius: 8px; background: var(--sh-panel); color: var(--sh-ink); font: inherit; cursor: pointer; }
-.player .player-extras select { width: 290px; }
+.player .player-extras select { width: 290px; padding-right: 35px; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23445066' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 11px center; background-size: 12px 8px; }
 .player .player-extras select:hover, .player .player-extras .pfull:hover { border-color: var(--sh-accent); }
 .player .player-extras select:focus-visible, .player .player-extras .pfull:focus-visible { outline: 3px solid var(--sh-focus); outline-offset: 2px; }
 .player .player-extras .pscen { display: inline-flex; align-items: center; gap: 8px; color: var(--sh-ink); font-weight: 600; }

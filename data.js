@@ -4,7 +4,7 @@ window.PHARE_DATA = (function () {
   const nodes = [
     /* Humains */
     { id: 'h_po', kind: 'human', x: 24, y: 50, w: 170, h: 50, label: 'Product Owner', sub: 'choisit les tickets' },
-    { id: 'h_ux', kind: 'human', x: 24, y: 120, w: 170, h: 50, label: 'UX / UI Designer', sub: 'dépose les maquettes' },
+    { id: 'h_ux', kind: 'human', x: 24, y: 120, w: 170, h: 50, label: 'Designer UX', sub: 'dépose les livrables UX' },
     { id: 'h_cdp', kind: 'human', x: 24, y: 190, w: 170, h: 50, label: 'Chef de projet', sub: 'valide et lance (go)' },
     { id: 'h_ing', kind: 'human', x: 24, y: 260, w: 170, h: 50, label: 'Ingénieur logiciel', sub: 'revue dans GitLab' },
     { id: 'h_rssi', kind: 'human', x: 24, y: 330, w: 170, h: 50, label: 'RSSI / adjoint', sub: 'classe · arrêt d\'urgence' },
@@ -12,14 +12,14 @@ window.PHARE_DATA = (function () {
 
     /* Sources et portail */
     { id: 's_back', kind: 'external', x: 240, y: 50, w: 190, h: 50, label: 'Suivi de tickets', sub: 'JIRA ou équivalent' },
-    { id: 's_maq', kind: 'external', x: 240, y: 120, w: 190, h: 50, label: 'Maquettes', sub: 'Figma ou document' },
+    { id: 's_maq', kind: 'external', x: 240, y: 120, w: 190, h: 50, label: 'Livrables UX', sub: 'Maquette Figma\nparcours utilisateur · personae' },
     { id: 'portail', kind: 'system', x: 240, y: 200, w: 190, h: 90, label: 'Portail PHARE', sub: 'registre projets et droits\nsnapshot versionné\nfichier de contexte (AGENTS.md)' },
     { id: 'camp', kind: 'system', x: 240, y: 320, w: 190, h: 50, label: 'Campagne', sub: 'même évolution · N applications' },
     { id: 'cmdb', kind: 'external', x: 240, y: 400, w: 190, h: 50, label: 'CMDB', sub: 'connecteur optionnel' },
 
     /* Garde d'entrée */
     { id: 'g_in', kind: 'container', x: 470, y: 40, w: 250, h: 300, label: 'Garde d\'entrée (préflight)' },
-    { id: 'gi_dor', kind: 'guard', x: 486, y: 75, w: 218, h: 44, label: 'DoR · cohérence tickets / maquettes' },
+    { id: 'gi_dor', kind: 'guard', x: 486, y: 75, w: 218, h: 44, label: 'DoR · tickets / livrables UX' },
     { id: 'gi_san', kind: 'guard', x: 486, y: 127, w: 218, h: 44, label: 'Assainissement · anti-injection' },
     { id: 'gi_rgpd', kind: 'guard', x: 486, y: 179, w: 218, h: 44, label: 'Données sensibles · RGPD' },
     { id: 'gi_cls', kind: 'guard', x: 486, y: 231, w: 218, h: 44, label: 'Classe C0-C3 · routage des modèles' },
@@ -56,7 +56,7 @@ window.PHARE_DATA = (function () {
     { id: 'e_po', from: 'h_po', to: 's_back', label: 'sélectionne' },
     { id: 'e_ux', from: 'h_ux', to: 's_maq', label: 'dépose' },
     { id: 'e_b', from: 's_back', to: 'portail', label: 'tickets' },
-    { id: 'e_m', from: 's_maq', to: 'portail', label: 'maquettes' },
+    { id: 'e_m', from: 's_maq', to: 'portail', label: 'livrables UX' },
     { id: 'e_cmdb', from: 'portail', to: 'cmdb', label: 'catalogue', dashed: true },
     { id: 'e_camp', from: 'camp', to: 'portail', label: 'projets enfants' },
     { id: 'e_pg', from: 'portail', to: 'gi_dor', label: 'dossier soumis' },
@@ -100,17 +100,17 @@ window.PHARE_DATA = (function () {
     creation: {
       name: 'Création : mini application de livrables (M1)',
       steps: [
-        { state: 0, title: 'Cadrage : tickets et maquettes', human: true,
-          who: ['Product Owner', 'UX / UI Designer'],
-          text: 'Le PO sélectionne les tickets à embarquer ; le designer dépose les maquettes (Figma, ou document). Le dossier est versionné dans le portail.',
-          deps: ['Suivi de tickets (accès authentifié)', 'Figma ou document', 'Registre de projets et de droits'],
-          ctrl: ['Provenance authentifiée des tickets', 'Snapshot immuable du dossier', 'Fichier de contexte projet : donnée revue, jamais autorité (ADR 0005)'],
+        { state: 0, title: 'Cadrage : tickets et livrables UX', human: true,
+          who: ['Product Owner', 'Designer UX'],
+          text: 'Le PO sélectionne les tickets à embarquer ; le Designer UX dépose la maquette Figma, le parcours utilisateur et les personae. Le dossier est versionné dans le portail.',
+          deps: ['Suivi de tickets (accès authentifié)', 'Maquette Figma, parcours utilisateur et personae', 'Registre de projets et de droits'],
+          ctrl: ['Provenance authentifiée des tickets et livrables UX', 'Snapshot immuable du dossier', 'Fichier de contexte projet : donnée revue, jamais autorité (ADR 0005)'],
           nodes: ['h_po', 'h_ux', 's_back', 's_maq', 'portail'], edges: ['e_po', 'e_ux', 'e_b', 'e_m'] },
         { state: 1, title: 'Préflight : la garde d\'entrée', human: false,
           who: ['Services de garde (automatique)'],
           text: 'Chaque contrôle est déterministe : complétude et cohérence du dossier, assainissement et détection d\'injection, données sensibles, classe C0-C3, présence des règles d\'approbation GitLab. Un rejet revient au cadrage avec motif.',
           deps: ['Services de garde (polyglotte, souvent Python)', 'GitLab : lecture en rôle Developer'],
-          ctrl: ['DoR bloquante', 'Anti-injection (tickets, maquettes, fichier de contexte)', 'RGPD déterministe', 'Classe effective = la plus haute sur l\'application'],
+          ctrl: ['DoR bloquante', 'Anti-injection (tickets, livrables UX, fichier de contexte)', 'RGPD déterministe', 'Classe effective = la plus haute sur l\'application'],
           nodes: ['g_in', 'gi_dor', 'gi_san', 'gi_rgpd', 'gi_cls', 'gi_gl', 'portail', 'h_rssi'],
           edges: ['e_pg', 'e_c1', 'e_c2', 'e_c3', 'e_c4', 'e_rssi'] },
         { state: 2, title: 'Planification : l\'usine établit seule le plan', human: false,
@@ -185,7 +185,7 @@ window.PHARE_DATA = (function () {
       name: 'Feature sur application réelle (M2)',
       steps: [
         { state: 0, title: 'Sélection des tickets sur une application existante', human: true,
-          who: ['Product Owner', 'UX / UI Designer'], text: 'Le dossier cible une application déjà présente dans le registre ; la CMDB peut en fournir le catalogue, sans être obligatoire.',
+          who: ['Product Owner', 'Designer UX'], text: 'Le dossier cible une application déjà présente dans le registre ; la CMDB peut en fournir le catalogue, sans être obligatoire.',
           deps: ['Registre de projets', 'CMDB (optionnelle)'], ctrl: ['Éligibilité de l\'application', 'Droits par projet'],
           nodes: ['h_po', 'h_ux', 's_back', 's_maq', 'portail', 'cmdb'], edges: ['e_po', 'e_ux', 'e_b', 'e_m', 'e_cmdb'] },
         { state: 1, title: 'Préflight et éligibilité', human: false,
