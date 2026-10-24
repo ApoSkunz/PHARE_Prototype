@@ -27,8 +27,28 @@ button:hover, select:hover { border-color: var(--active); }
 /* Tout tient dans la fenêtre : le schéma s'adapte à l'espace libre, le panneau latéral défile à l'intérieur si besoin */
 main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; padding: 10px 20px; }
 .stagecol { min-width: 0; min-height: 0; display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.stage { flex: 1; min-width: 0; min-height: 0; }
+.stage { flex: 1; min-width: 0; min-height: 0; position: relative; }
 svg { display: block; width: 100%; height: 100%; }
+.view-mode { position: absolute; z-index: 5; top: 12px; right: 12px; display: flex; gap: 6px; padding: 5px; border: 1px solid #d7deeb; border-radius: 9px; background: rgba(255,255,255,.92); box-shadow: 0 5px 18px rgba(25,38,64,.12); }
+.view-mode button { padding: 5px 9px; border-color: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
+.view-mode button.on { color: #fff; background: #285b9d; border-color: #285b9d; }
+.view-mode span { font-size: 10px; text-transform: uppercase; opacity: .78; }
+.scene3d { position: absolute; inset: 0; overflow: hidden; background: #0d1726; }
+.scene3d canvas { display: block; width: 100%; height: 100%; outline: none; }
+.scene3d-help { position: absolute; z-index: 1; right: 14px; bottom: 9px; margin: 0; padding: 5px 8px; color: #d8e4f5; border: 1px solid rgba(180,207,240,.22); border-radius: 6px; background: rgba(8,17,31,.72); font-size: 11px; pointer-events: none; }
+.scene3d-tooltip { position: absolute; z-index: 2; max-width: 260px; padding: 7px 9px; color: #f4f8ff; border: 1px solid rgba(174,208,255,.38); border-radius: 7px; background: rgba(7,16,30,.92); box-shadow: 0 8px 22px rgba(0,0,0,.25); font-size: 12px; line-height: 1.35; pointer-events: none; transform: translate(12px, 12px); opacity: 0; transition: opacity .12s; }
+.scene3d-tooltip.show { opacity: 1; }
+.scene3d-inspector { position: absolute; z-index: 3; top: 14px; left: 14px; width: min(286px, calc(100% - 28px)); max-height: calc(100% - 62px); padding: 13px 35px 13px 14px; overflow: auto; color: #edf5ff; border: 1px solid rgba(133,183,249,.55); border-left: 4px solid #5ca7ff; border-radius: 9px; background: rgba(7,16,30,.92); box-shadow: 0 10px 30px rgba(0,0,0,.32); }
+.scene3d-inspector h2 { margin: 1px 0 5px; font-size: 15px; line-height: 1.2; }
+.scene3d-inspector p { margin: 0; font-size: 12px; line-height: 1.38; }
+.scene3d-inspector .scene3d-kind { color: #9cc6ff; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.scene3d-inspector .scene3d-links { margin-top: 9px; color: #c8d8eb; }
+.scene3d-close { position: absolute; top: 7px; right: 7px; width: 23px; height: 23px; padding: 0; color: #d8e6f8; border-color: rgba(170,201,240,.4); background: transparent; font-size: 19px; line-height: 18px; }
+.scene3d-explode { width: 100%; margin-top: 11px; padding: 6px 8px; color: #f5f9ff; border-color: #69aaff; background: #235894; font-size: 12px; font-weight: 700; }
+.scene3d-explode:hover { border-color: #b7d7ff; background: #2d6fb7; }
+.scene3d-connection-list { display: grid; gap: 5px; margin-top: 9px; }
+.scene3d-connection-list button { display: block; width: 100%; padding: 5px 7px; overflow: hidden; color: #dceaff; border-color: rgba(141,184,239,.42); background: rgba(49,91,143,.23); font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.scene3d-connection-list button:hover { color: #fff; background: rgba(73,132,205,.48); }
 .side { min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; overflow: auto; }
 @media (max-width: 1100px) {
   html, body { height: auto; }
@@ -37,6 +57,8 @@ svg { display: block; width: 100%; height: 100%; }
   .stagecol { min-height: 320px; }
   svg { min-width: 700px; height: auto; }
   .stage { overflow: auto; }
+  .view-mode { position: fixed; top: auto; right: 16px; bottom: 12px; }
+  .scene3d { min-width: 700px; }
 }
 .side h2 { margin: 0 0 6px; font-size: 16px; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin: 0 6px 6px 0; border: 1px solid var(--line); }

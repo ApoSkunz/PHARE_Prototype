@@ -163,6 +163,8 @@
     Object.keys(nodeEls).forEach(function (id) { nodeEls[id].classList.toggle('active', !!activeNodes[id]); });
     Object.keys(edgeEls).forEach(function (id) { edgeEls[id].classList.toggle('active', step.edges.indexOf(id) !== -1); });
     Object.keys(labelEls).forEach(function (id) { labelEls[id].classList.toggle('active', step.edges.indexOf(id) !== -1); });
+    window.PHARE_PROCESS_STATE = { activeNodes: activeNodes, activeEdges: step.edges.slice(), idle: idleNow, step: step };
+    window.dispatchEvent(new CustomEvent('phare:process-step', { detail: window.PHARE_PROCESS_STATE }));
     renderStates(step.state);
     panel.title.textContent = step.title;
     panel.count.textContent = 'Étape ' + (stepIndex + 1) + ' sur ' + list.length + ' · ' + D.scenarios[scenarioKey].name;

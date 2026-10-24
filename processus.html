@@ -22,7 +22,25 @@
 <main>
   <div class="stagecol">
     <div class="stage">
+      <div class="view-mode" role="group" aria-label="Mode de visualisation">
+        <button id="view-2d" class="on" type="button" aria-pressed="true">Vue 2D</button>
+        <button id="view-3d" type="button" aria-pressed="false">Vue 3D <span>beta</span></button>
+        <button id="view-reset" type="button" hidden>Recentrer</button>
+      </div>
       <svg id="canvas" viewBox="0 0 1370 690" role="img" aria-label="Schéma du fonctionnement de PHARE"></svg>
+      <section id="scene3d" class="scene3d" hidden aria-label="Vue 3D interactive du processus">
+        <div id="scene3d-tooltip" class="scene3d-tooltip" role="status" aria-live="polite"></div>
+        <aside id="scene3d-inspector" class="scene3d-inspector" hidden aria-live="polite">
+          <button id="scene3d-close" class="scene3d-close" type="button" aria-label="Fermer l'inspection">×</button>
+          <p id="scene3d-kind" class="scene3d-kind"></p>
+          <h2 id="scene3d-title"></h2>
+          <p id="scene3d-sub"></p>
+          <p id="scene3d-links" class="scene3d-links"></p>
+          <div id="scene3d-connection-list" class="scene3d-connection-list"></div>
+          <button id="scene3d-explode" class="scene3d-explode" type="button" hidden>Décomposer ce périmètre</button>
+        </aside>
+        <p class="scene3d-help">Clic gauche : tourner · clic molette : déplacer · molette : zoomer</p>
+      </section>
     </div>
   </div>
   <aside class="side">
@@ -44,5 +62,9 @@
 <script src="data.js"></script>
 <script src="shell.js"></script>
 <script src="app.js"></script>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="processus-3d.js"></script>
 </body>
 </html>
