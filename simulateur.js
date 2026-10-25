@@ -7,7 +7,7 @@
 
   var NS = 'http://www.w3.org/2000/svg';
   var CX = 600, CY = 360, RX = 430, RY = 250;      /* anneau des modules */
-  var TX = 270, TY = 170;                          /* tapis roulant (flux des dossiers) */
+  var TX = 270, TY = 170, TCY = 370;               /* tapis roulant : centré sur le poids visuel du pupitre */
   var DR0 = 82, DR1 = 120;                         /* cadran de l'orchestrateur */
   var MW = 196, MH = 100;                          /* module (repère interne) */
   var K = 1.12;                                    /* agrandissement des modules : textes plus lisibles */
@@ -36,7 +36,7 @@
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function rad(d) { return d * Math.PI / 180; }
   function onRing(th) { return { x: CX + RX * Math.cos(rad(th)), y: CY + RY * Math.sin(rad(th)) }; }
-  function onTrack(th) { return { x: CX + TX * Math.cos(rad(th)), y: CY + TY * Math.sin(rad(th)) }; }
+  function onTrack(th) { return { x: CX + TX * Math.cos(rad(th)), y: TCY + TY * Math.sin(rad(th)) }; }
   function mmss(s) { s = Math.max(0, Math.floor(s)); return ('0' + Math.floor(s / 60)).slice(-2) + ':' + ('0' + (s % 60)).slice(-2); }
   function arc(r0, r1, a0, a1) {
     var p = function (r, a) { return (CX + r * Math.cos(rad(a))).toFixed(1) + ' ' + (CY + r * Math.sin(rad(a))).toFixed(1); };
@@ -67,14 +67,14 @@
   var CAPS = { serre: { n: 'serré', f: 0.55 }, normal: { n: 'normal', f: 1 }, large: { n: 'large', f: 1.8 } };
   var ROLES = {
     PO: { n: 'Product Owner', d: 'Choisit les tickets à embarquer. Ne valide ni le plan ni les tests par défaut.' },
-    UX: { n: 'UX/UI designer', d: 'Dépose les maquettes (Figma ou document).' },
+    UX: { n: 'Designer UX', d: 'Dépose les livrables UX : maquette Figma, parcours utilisateur et personae.' },
     CP: { n: 'Chef de projet', d: 'Lit le plan chiffré et signe le go : seul acte humain de la Planification. Jamais approbateur de la MR.' },
     ING: { n: 'Ingénieur logiciel', d: 'Relit et approuve la MR dans GitLab (deux approbateurs distincts en renforcé).' },
     RSSI: { n: 'RSSI ou adjoint', d: 'Règles de classe, arrêt d\'urgence, baisse de classe (l\'un des deux suffit).' },
     PLAT: { n: 'Ingénieur plateforme', d: 'Traite les escalades : reprendre, ajuster le budget dans sa délégation, abandonner.' },
   };
   var TRANS = [
-    ['Cadrage', 'Contrôle d\'entrée', 'dossier déposé : tickets et maquettes', 'PO, UX'],
+    ['Cadrage', 'Contrôle d\'entrée', 'dossier déposé : tickets et livrables UX', 'PO, UX'],
     ['Contrôle d\'entrée', 'Planification', 'complet ∧ sain ∧ RGPD conforme ∧ classe fixée ∧ modèle autorisé', 'contrôle d\'entrée'],
     ['Planification', 'Prêt à lancer', 'plan conforme aux règles de validité ∧ estimation produite', 'orchestrateur'],
     ['Prêt à lancer', 'Lancé', 'go signé ∧ dossier figé et signé ∧ cadre de revue vérifié', 'chef de projet'],
@@ -86,17 +86,19 @@
 
   /* ---------- Modules ---------- */
   var MODS = [
-    { id: 'portail', th: 180, type: 'human', title: 'Portail de dépôt', tag: 'tickets · maquettes', chk: ['Tickets', 'Maquet.', 'Projet', 'Droits'], roles: ['PO', 'UX'], icon: 'inbox' },
+    { id: 'portail', th: 180, type: 'human', title: 'Portail de dépôt', tag: 'tickets · livrables UX', chk: ['Tickets', 'UX', 'Projet', 'Droits'], roles: ['PO', 'UX'], roleDock: 'outer', icon: 'inbox' },
     { id: 'entree', th: 225, type: 'guard', title: 'Contrôle d\'entrée', tag: 'avant fabrication', chk: ['Complet', 'Injec.', 'RGPD', 'Niveau'], icon: 'shield' },
-    { id: 'plan', th: 270, type: 'human', title: 'Planification', tag: 'plan auto · go humain', chk: ['Plan', 'Tests', 'Budget', 'GO'], roles: ['CP'], icon: 'plan' },
+    { id: 'plan', th: 270, type: 'human', title: 'Planification', tag: 'plan auto · go humain', chk: ['Plan', 'Tests', 'Budget', 'GO'], roles: ['CP'], roleDock: 'outer', icon: 'plan' },
     { id: 'sandbox', th: 315, type: 'agent', title: 'Cellule isolée', tag: '3 agents IA', chk: ['Tests', 'Code', 'Revue', 'Corr.'], icon: 'cube' },
     { id: 'sortie', th: 0, type: 'guard', title: 'Contrôle de sortie', tag: 'indépendante des agents', chk: ['Tests', 'Banc', 'Sécu.', 'Secrets'], icon: 'gate' },
-    { id: 'forge', th: 45, type: 'ext', title: 'Forge GitLab', tag: 'demande de fusion', chk: ['MR', 'CI', 'Revue', 'Appro.'], roles: ['ING'], icon: 'branch' },
+    { id: 'forge', th: 45, type: 'ext', title: 'Forge GitLab', tag: 'demande de fusion', chk: ['MR', 'CI', 'Revue', 'Appro.'], roles: ['ING'], roleDock: 'outer', icon: 'branch' },
     { id: 'prod', th: 90, type: 'ext', title: 'Fusion et prod', tag: 'géré par GitLab', chk: ['Fusion', 'Deploy'], icon: 'server' },
-    { id: 'escalade', th: 135, type: 'human', title: 'Équipe plateforme', tag: 'escalade', chk: ['Diag.', 'Décision'], roles: ['PLAT'], icon: 'bell' },
+    { id: 'escalade', th: 135, type: 'human', title: 'Équipe plateforme', tag: 'escalade', chk: ['Diag.', 'Décision'], roles: ['PLAT'], roleDock: 'outer', icon: 'bell' },
   ];
   var MOD = {};
   MODS.forEach(function (m) { MOD[m.id] = m; m.p = onRing(m.th); });
+  /* Laisse une gouttière lisible entre la cellule et les services techniques. */
+  MOD.sandbox.p.x -= 32;
 
   var ICONS = {
     inbox: ['M3 13 l3 -8 h12 l3 8 v6 h-18 z', 'M3 13 h5 l1 3 h6 l1 -3 h5'],
@@ -206,9 +208,9 @@
     }
 
     /* Portail */
-    add('portail', 0, 4, n + (n > 1 ? ' tickets sélectionnés' : ' ticket sélectionné') + (camp ? ' pour 2 applications' : '') + ', maquettes déposées', {
-      chk: 'oooo', pk: 'Tickets + maquettes', human: { role: 'PO', also: ['UX'], label: camp ? 'Lance la campagne depuis le backlog' : 'Sélectionne les tickets' },
-      log: [['HUMAIN', 'PO : ' + n + ' ticket(s) sélectionné(s) dans le backlog'], ['HUMAIN', 'UX : maquettes déposées (Figma ou document)'], ['ORCH', 'Dossier enregistré, version figée']],
+    add('portail', 0, 4, n + (n > 1 ? ' tickets sélectionnés' : ' ticket sélectionné') + (camp ? ' pour 2 applications' : '') + ', livrables UX déposés', {
+      chk: 'oooo', pk: 'Tickets + livrables UX', human: { role: 'PO', also: ['UX'], label: camp ? 'Lance la campagne depuis le backlog' : 'Sélectionne les tickets' },
+      log: [['HUMAIN', 'PO : ' + n + ' ticket(s) sélectionné(s) dans le backlog'], ['HUMAIN', 'Designer UX : maquette Figma, parcours utilisateur et personae déposés'], ['ORCH', 'Dossier enregistré, version figée']],
     });
 
     /* Préflight */
@@ -353,26 +355,56 @@
   var defs = S('defs', {}, svg);
   var pat = S('pattern', { id: 'grid', width: 40, height: 40, patternUnits: 'userSpaceOnUse' }, defs);
   S('path', { d: 'M40 0 H0 V40', fill: 'none', stroke: LT.grid, 'stroke-width': 1 }, pat);
+  /* Le centre est dessiné comme un pupitre isométrique : du SVG natif plutôt
+     qu'une scène WebGL, afin de préserver le rendu hors-ligne et l'accessibilité. */
+  var dialTop = S('radialGradient', { id: 'dial-top', cx: '35%', cy: '22%', r: '78%' }, defs);
+  S('stop', { offset: '0%', 'stop-color': '#ffffff' }, dialTop);
+  S('stop', { offset: '58%', 'stop-color': '#eef2fb' }, dialTop);
+  S('stop', { offset: '100%', 'stop-color': '#c4cde0' }, dialTop);
+  var dialSide = S('linearGradient', { id: 'dial-side', x1: '0', y1: '0', x2: '0', y2: '1' }, defs);
+  S('stop', { offset: '0%', 'stop-color': '#8c99b6' }, dialSide);
+  S('stop', { offset: '100%', 'stop-color': '#56637d' }, dialSide);
+  var tubeShell = S('linearGradient', { id: 'tube-shell', x1: '0', y1: String(TCY - TY), x2: '0', y2: String(TCY + TY), gradientUnits: 'userSpaceOnUse' }, defs);
+  S('stop', { offset: '0%', 'stop-color': '#ffffff' }, tubeShell);
+  S('stop', { offset: '28%', 'stop-color': '#dce5f4' }, tubeShell);
+  S('stop', { offset: '62%', 'stop-color': '#9baac4' }, tubeShell);
+  S('stop', { offset: '100%', 'stop-color': '#71819e' }, tubeShell);
+  var dialGlow = S('filter', { id: 'dial-glow', x: '-40%', y: '-40%', width: '180%', height: '180%' }, defs);
+  S('feDropShadow', { dx: '0', dy: '10', stdDeviation: '8', 'flood-color': '#26344e', 'flood-opacity': '.3' }, dialGlow);
   S('rect', { x: 0, y: 0, width: 1200, height: 720, fill: 'url(#grid)' }, svg);
   S('ellipse', { cx: CX, cy: CY, rx: RX, ry: RY, fill: 'none', stroke: LT.ring, 'stroke-width': 2, 'stroke-dasharray': '3 9' }, svg);
-  S('ellipse', { cx: CX, cy: CY, rx: TX, ry: TY, fill: 'none', stroke: LT.track, 'stroke-width': 22 }, svg);
-  var belt = S('ellipse', { cx: CX, cy: CY, rx: TX, ry: TY, fill: 'none', stroke: LT.belt, 'stroke-width': 3, 'stroke-dasharray': '2 20', 'stroke-linecap': 'round' }, svg);
+  /* Tube de circulation : une coque épaisse, une gorge intérieure et un flux
+     animé. Les trois couches restent sur le même trajet que le colis. */
+  S('ellipse', { cx: CX, cy: TCY + 7, rx: TX, ry: TY, fill: 'none', stroke: '#52627e', 'stroke-width': 34, opacity: .25 }, svg);
+  S('ellipse', { cx: CX, cy: TCY, rx: TX, ry: TY, fill: 'none', stroke: 'url(#tube-shell)', 'stroke-width': 30 }, svg);
+  S('ellipse', { cx: CX, cy: TCY - 2, rx: TX, ry: TY, fill: 'none', stroke: '#f8faff', 'stroke-width': 18, opacity: .72 }, svg);
+  S('ellipse', { cx: CX, cy: TCY - 7, rx: TX - 2, ry: TY - 2, fill: 'none', stroke: '#ffffff', 'stroke-width': 2.4, opacity: .72 }, svg);
+  var beltTrail = S('ellipse', { cx: CX, cy: TCY, rx: TX, ry: TY, fill: 'none', stroke: '#6a8fd6', 'stroke-width': 8, opacity: .22, 'stroke-dasharray': '3 20', 'stroke-linecap': 'round' }, svg);
+  var belt = S('ellipse', { cx: CX, cy: TCY, rx: TX, ry: TY, fill: 'none', stroke: '#315fbd', 'stroke-width': 3.2, 'stroke-dasharray': '2 20', 'stroke-linecap': 'round' }, svg);
 
   var spokes = {};
   MODS.forEach(function (m) {
     var a = Math.atan2(m.p.y - CY, m.p.x - CX);
     var x0 = CX + (DR1 + 4) * Math.cos(a), y0 = CY + (DR1 + 4) * Math.sin(a);
-    spokes[m.id] = { line: S('line', { x1: x0, y1: y0, x2: m.p.x, y2: m.p.y, stroke: LT.spoke, 'stroke-width': 2, 'stroke-dasharray': '4 7' }, svg), x0: x0, y0: y0, x1: m.p.x, y1: m.p.y,
+    spokes[m.id] = { line: S('line', { x1: x0, y1: y0, x2: m.p.x, y2: m.p.y, stroke: LT.spoke, 'stroke-width': 2, 'stroke-dasharray': '3 8', opacity: .58 }, svg), x0: x0, y0: y0, x1: m.p.x, y1: m.p.y,
       dot: S('circle', { r: 5, fill: COL.warn, opacity: 0 }, svg) };
   });
 
-  var dial = { g: S('g', { class: 'hit', 'data-key': 'orchestre' }, svg), arcs: [] };
-  S('circle', { cx: CX, cy: CY, r: DR1 + 10, fill: LT.dialBg, stroke: LT.ring, 'stroke-width': 2 }, dial.g);
+  var dial = { g: S('g', { class: 'hit dial-3d', 'data-key': 'orchestre', filter: 'url(#dial-glow)' }, svg), arcs: [] };
+  /* Pupitre sobre : une faible profondeur suffit à matérialiser le volume sans
+     transformer le schéma en objet décoratif. */
+  S('ellipse', { cx: CX, cy: CY + 18, rx: DR1 + 12, ry: (DR1 + 12) * .82, fill: 'url(#dial-side)', stroke: '#64718b', 'stroke-width': 2 }, dial.g);
+  S('ellipse', { cx: CX, cy: CY + 13, rx: DR1 + 12, ry: (DR1 + 12) * .82, fill: '#8793aa', opacity: .55 }, dial.g);
+  var dialFace = S('g', { transform: 'translate(0,' + (CY * .18).toFixed(1) + ') scale(1,.82)' }, dial.g);
+  S('circle', { cx: CX, cy: CY, r: DR1 + 10, fill: 'url(#dial-top)', stroke: LT.ring, 'stroke-width': 2.5 }, dialFace);
   STATES.forEach(function (n, i) {
     var a0 = -90 + i * 40 + 1.5, a1 = -90 + (i + 1) * 40 - 1.5;
-    dial.arcs.push(S('path', { d: arc(DR0, DR1, a0, a1), fill: LT.dialArc, stroke: LT.halo, 'stroke-width': 1 }, dial.g));
+    dial.arcs.push(S('path', { d: arc(DR0, DR1, a0, a1), fill: LT.dialArc, stroke: LT.halo, 'stroke-width': 1.5 }, dialFace));
   });
-  S('text', { x: CX, y: CY - 24, 'text-anchor': 'middle', style: 'font-size:10px;font-weight:800;letter-spacing:.14em', fill: COL.mute }, dial.g, 'ORCHESTRATEUR');
+  /* Le centre reste intégré à la face inclinée ; seuls les textes sont frontaux
+     pour préserver la lecture sans ajouter une seconde pastille circulaire. */
+  S('ellipse', { cx: CX, cy: CY, rx: 72, ry: 60, fill: '#f8fafc', stroke: '#b5c0d7', 'stroke-width': 1.5 }, dialFace);
+  S('text', { x: CX, y: CY - 23, 'text-anchor': 'middle', style: 'font-size:10px;font-weight:800;letter-spacing:.14em', fill: COL.mute }, dial.g, 'ORCHESTRATEUR');
   var dialState = S('text', { x: CX, y: CY + 2, 'text-anchor': 'middle', style: 'font-size:15px;font-weight:800', fill: COL.text }, dial.g, '');
   S('text', { x: CX, y: CY + 22, 'text-anchor': 'middle', style: 'font-size:10.5px', fill: COL.mute }, dial.g, 'workflow déterministe');
   var dialStep = S('text', { x: CX, y: CY + 38, 'text-anchor': 'middle', style: 'font-size:10.5px', fill: COL.mute }, dial.g, '');
@@ -386,14 +418,32 @@
   });
 
   /* ---------- Pictogrammes humains ---------- */
+  var roleTip = H('div', { class: 'role-tooltip', hidden: 'hidden' }, [H('b'), H('span')]);
+  svg.parentNode.appendChild(roleTip);
+  function showRoleTip(role, target) {
+    var person = ROLES[role], sceneBox = svg.parentNode.getBoundingClientRect(), badgeBox = target.getBoundingClientRect();
+    if (!person || !sceneBox.width) return;
+    roleTip.firstChild.textContent = person.n;
+    roleTip.lastChild.textContent = person.d;
+    roleTip.hidden = false;
+    roleTip.style.left = clamp(badgeBox.left - sceneBox.left + badgeBox.width / 2, 118, sceneBox.width - 118).toFixed(0) + 'px';
+    roleTip.style.top = Math.max(12, badgeBox.top - sceneBox.top - 8).toFixed(0) + 'px';
+  }
+  function hideRoleTip() { roleTip.hidden = true; }
   function glyph(parent, x, y, label) {
-    var g = S('g', { transform: 'translate(' + x + ',' + y + ')' }, parent);
-    var c = S('circle', { r: 17, fill: COL.deep, stroke: COL.human, 'stroke-width': 2.5 }, g);
-    var body = S('g', { fill: COL.human }, g);
-    S('circle', { cx: 0, cy: -6, r: 4.2 }, body);
-    S('path', { d: 'M-8 3 a8 6 0 0 1 16 0 z' }, body);
-    var t = S('text', { y: 14, 'text-anchor': 'middle', style: 'font-size:9px;font-weight:800', fill: COL.human }, g, label);
-    return { g: g, c: c, body: body, t: t };
+    var roleName = ROLES[label].n;
+    var g = S('g', { class: 'person-figure', transform: 'translate(' + x + ',' + y + ')', tabindex: 0, 'aria-label': roleName }, parent);
+    var shadow = S('ellipse', { class: 'person-shadow', cy: 16, rx: 10, ry: 2.8, fill: '#8b98b2', opacity: .28 }, g);
+    var head = S('circle', { class: 'person-head', cy: -10, r: 5.2, fill: '#fffaf7', stroke: COL.human, 'stroke-width': 2 }, g);
+    var body = S('g', { class: 'person-body', fill: COL.human, stroke: COL.human, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+    S('path', { d: 'M-6 -3 Q0 -7 6 -3 L5 8 H-5 Z', stroke: 'none' }, body);
+    S('path', { d: 'M-5 -1 L-10 5 M5 -1 L10 5 M-2 8 L-5 15 M2 8 L5 15', fill: 'none', 'stroke-width': 2.4 }, body);
+    var t = S('text', { y: 27, 'text-anchor': 'middle', style: 'font-size:8px;font-weight:900;paint-order:stroke', stroke: '#ffffff', 'stroke-width': 3, fill: COL.human }, g, roleName);
+    g.addEventListener('mouseenter', function () { showRoleTip(label, g); });
+    g.addEventListener('mouseleave', hideRoleTip);
+    g.addEventListener('focus', function () { showRoleTip(label, g); });
+    g.addEventListener('blur', hideRoleTip);
+    return { g: g, head: head, shadow: shadow, body: body, t: t };
   }
   var glyphs = {};
 
@@ -408,7 +458,11 @@
     var color = COL[m.type] || COL.mute;
     var g = S('g', { class: 'hit', 'data-key': m.id, transform: 'translate(' + m.p.x + ',' + m.p.y + ') scale(' + K + ')' }, svg);
     if (m.id === 'sandbox') S('rect', { x: -MW / 2 - 7, y: -MH / 2 - 7, width: MW + 14, height: MH + 14, rx: 16, fill: 'none', stroke: COL.agent, 'stroke-width': 1.8, 'stroke-dasharray': '7 6', opacity: 0.75 }, g);
+    /* Socle et tranche basse : le relief est constant pour tous les modules,
+       sans transformer leur état en effet lumineux permanent. */
+    S('rect', { x: -MW / 2 + 3, y: -MH / 2 + 7, width: MW - 6, height: MH, rx: 10, fill: '#c8d1e1', stroke: '#9aa8c0', 'stroke-width': 1.4 }, g);
     var frame = S('rect', { class: 'frame', x: -MW / 2, y: -MH / 2, width: MW, height: MH, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, g);
+    S('path', { d: 'M' + (-MW / 2 + 12) + ' ' + (-MH / 2 + 2) + ' H' + (MW / 2 - 12), fill: 'none', stroke: '#ffffff', 'stroke-width': 2, opacity: .9 }, g);
     S('circle', { cx: -68, cy: -20, r: 21, fill: COL.deep, stroke: color, 'stroke-width': 2 }, g);
     drawIcon(g, m.icon, color);
     S('text', { x: -40, y: -23, class: 'mod-title' }, g, m.title);
@@ -425,36 +479,51 @@
     var beam = m.type === 'guard' ? S('rect', { x: -MW / 2, y: -MH / 2 + 2, width: 4, height: MH - 4, fill: COL.guard, opacity: 0 }, g) : null;
     mods[m.id] = { g: g, frame: frame, pills: pills, prog: prog, prog2: prog2, beam: beam, tag: tag, color: color, def: m };
     (m.roles || []).forEach(function (role, k) {
-      glyphs[m.id + ':' + role] = glyph(svg, m.p.x + MW * K / 2 - 20 - 42 * ((m.roles.length - 1) - k), m.p.y - MH * K / 2 - 20, role);
+      var dx = m.p.x - CX, dy = m.p.y - CY, length = Math.sqrt(dx * dx + dy * dy) || 1;
+      var ux = dx / length, uy = dy / length;
+      if (m.roleDock === 'inner') { ux = -ux; uy = -uy; }
+      var halfW = MW * K / 2, halfH = MH * K / 2;
+      var edge = Math.min(Math.abs(ux) > .001 ? halfW / Math.abs(ux) : Infinity, Math.abs(uy) > .001 ? halfH / Math.abs(uy) : Infinity);
+      var spread = (k - (m.roles.length - 1) / 2) * 64;
+      var distance = edge + 36;
+      /* Répartition sur la tangente : les personnes restent du même côté du
+         composant tout en ne masquant ni le flux ni les autres cartes. */
+      glyphs[m.id + ':' + role] = glyph(svg, m.p.x + ux * distance - uy * spread, m.p.y + uy * distance + ux * spread, role);
     });
   });
 
   /* ---------- Coins : budget, routeur, skills, salle de contrôle ---------- */
   /* Budget, salle de contrôle et légende sont ancrés au bord gauche visible de la scène (le schéma est centré : sur un écran large,
      des marges apparaissent de chaque côté). La mention « valeurs fictives » est ancrée au bord droit. */
-  var cornerL = S('g', {}, svg), cornerR = S('g', {}, svg);
+  var cornerL = S('g', {}, svg), cornerR = S('g', {}, svg), serviceZone = S('g', {}, svg);
   function layoutCorners() {
     var r = svg.getBoundingClientRect();
     if (!r.width || !r.height) return;
     var scale = Math.min(r.width / 1200, r.height / 720), visW = r.width / scale, extra = Math.max(0, (visW - 1200) / 2);
     cornerL.setAttribute('transform', 'translate(' + (-extra).toFixed(1) + ',0)');
     cornerR.setAttribute('transform', 'translate(' + extra.toFixed(1) + ',0)');
-    /* les liens modèles → cellule suivent les modèles, qui se sont rapprochés du bord droit */
-    if (typeof skillLink !== 'undefined') skillLink.line.setAttribute('x2', 1032 + extra);
-    if (rlines) ['A', 'B', 'I'].forEach(function (k, i) { rlines[k].line.setAttribute('x1', 930 + i * 85 + 40 + extra); });
   }
   if (window.ResizeObserver) new ResizeObserver(layoutCorners).observe(svg); else window.addEventListener('resize', layoutCorners);
   var gauge = S('g', { class: 'hit', 'data-key': 'budget', transform: 'translate(84,72)' }, cornerL);
-  S('path', { d: 'M-58 0 A58 58 0 0 1 58 0', fill: 'none', stroke: LT.dialArc, 'stroke-width': 14 }, gauge);
+  /* Jauge en relief, sans carte : la tranche sombre sous l'arc et sa surface
+     claire créent le volume directement sur l'instrument. */
+  S('path', { d: 'M-58 0 A58 58 0 0 1 58 0', transform: 'translate(0,6)', fill: 'none', stroke: '#667590', 'stroke-width': 18, 'stroke-linecap': 'round', opacity: .72 }, gauge);
+  S('path', { d: 'M-58 0 A58 58 0 0 1 58 0', fill: 'none', stroke: '#eef3fb', 'stroke-width': 18, 'stroke-linecap': 'round' }, gauge);
+  S('path', { d: 'M-58 0 A58 58 0 0 1 58 0', fill: 'none', stroke: LT.dialArc, 'stroke-width': 14, 'stroke-linecap': 'round' }, gauge);
   S('path', { d: 'M-58 0 A58 58 0 0 1 20.5 -54.5', fill: 'none', stroke: '#2b8a3e', 'stroke-width': 14 }, gauge);
   S('path', { d: 'M20.5 -54.5 A58 58 0 0 1 46.9 -34.1', fill: 'none', stroke: '#e8a500', 'stroke-width': 14 }, gauge);
   S('path', { d: 'M46.9 -34.1 A58 58 0 0 1 58 0', fill: 'none', stroke: '#c92a2a', 'stroke-width': 14 }, gauge);
+  var needleShadow = S('line', { x1: 2, y1: 3, x2: -44, y2: 3, stroke: '#33415c', opacity: .28, 'stroke-width': 5.5, 'stroke-linecap': 'round' }, gauge);
   var needle = S('line', { x1: 0, y1: 0, x2: -46, y2: 0, stroke: COL.text, 'stroke-width': 4, 'stroke-linecap': 'round' }, gauge);
-  S('circle', { r: 7, fill: COL.text }, gauge);
-  S('text', { y: 22, 'text-anchor': 'middle', style: 'font-size:13px;font-weight:800', fill: COL.text }, gauge, 'Budget de fabrication');
-  var gaugeVal = S('text', { y: 38, 'text-anchor': 'middle', class: 'small-t' }, gauge, '');
+  S('circle', { r: 8, fill: '#697795', stroke: '#43516c', 'stroke-width': 1.5 }, gauge);
+  S('circle', { r: 4, fill: COL.text }, gauge);
+  S('text', { y: 35, 'text-anchor': 'middle', style: 'font-size:13px;font-weight:800', fill: COL.text }, gauge, 'Budget de fabrication');
+  var gaugeVal = S('text', { y: 52, 'text-anchor': 'middle', class: 'small-t' }, gauge, '');
 
-  var router = S('g', { class: 'hit', 'data-key': 'router', transform: 'translate(930,40)' }, cornerR);
+  /* Zone technique ancrée au voisinage de la cellule, et non au bord de la
+     fenêtre : modèles et règles forment toujours le même îlot visuel. */
+  var routerX = MOD.sandbox.p.x - 125, routerY = MOD.sandbox.p.y - 154;
+  var router = S('g', { class: 'hit', 'data-key': 'router', transform: 'translate(' + routerX + ',' + routerY + ')' }, serviceZone);
   S('text', { x: 125, y: 1, 'text-anchor': 'middle', style: 'font-size:13px;font-weight:800', fill: COL.text }, router, 'Modèles d\'IA (hors cellule)');
   S('text', { x: 125, y: 16, 'text-anchor': 'middle', class: 'small-t' }, router, 'passerelle surveillée · pas d\'internet libre');
   var rpills = {}, rlines = {};
@@ -465,28 +534,31 @@
     var t2 = S('text', { x: 40, y: 34, 'text-anchor': 'middle', class: 'small-t' }, pg, MODELS[k].s);
     var strike = S('line', { x1: 6, y1: 38, x2: 74, y2: 6, stroke: COL.guard, 'stroke-width': 1.8, opacity: 0 }, pg);
     rpills[k] = { r: r, t1: t1, t2: t2, strike: strike };
-    rlines[k] = { line: S('line', { x1: 930 + i * 85 + 40, y1: 110, x2: MOD.sandbox.p.x - 45 + i * 45, y2: MOD.sandbox.p.y - MH * K / 2 - 6, stroke: COL.agent, 'stroke-width': 3, opacity: 0, 'stroke-dasharray': '5 5' }, svg),
+    rlines[k] = { line: S('line', { x1: routerX + i * 85 + 40, y1: routerY + 70, x2: MOD.sandbox.p.x - 45 + i * 45, y2: MOD.sandbox.p.y - MH * K / 2 - 6, stroke: COL.agent, 'stroke-width': 3, opacity: 0, 'stroke-dasharray': '5 5' }, svg),
       dot: S('circle', { r: 4.5, fill: COL.agent, opacity: 0 }, svg), i: i };
   });
 
-  var skillsTile = S('g', { class: 'hit', 'data-key': 'skills', transform: 'translate(1032,132)' }, cornerR);
-  S('rect', { width: 162, height: 166, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, skillsTile);
-  S('text', { x: 81, y: 22, 'text-anchor': 'middle', style: 'font-size:12.5px;font-weight:800', fill: COL.text }, skillsTile, 'Règles communes (skills)');
-  S('text', { x: 81, y: 38, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, 'catalogue signé · versionné');
+  var skillsX = MOD.sandbox.p.x + 156, skillsY = MOD.sandbox.p.y - 86;
+  var skillsTile = S('g', { class: 'hit', 'data-key': 'skills', transform: 'translate(' + skillsX + ',' + skillsY + ')' }, serviceZone);
+  S('rect', { width: 162, height: 184, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, skillsTile);
+  S('text', { x: 81, y: 25, 'text-anchor': 'middle', style: 'font-size:10.5px;font-weight:800', fill: COL.text }, skillsTile, 'Règles communes (skills)');
+  S('text', { x: 81, y: 43, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, 'catalogue signé · versionné');
   var skillsLabels = ['OIDC · SAML · LDAPS', 'Règles IA', 'Design System', ''];
   var skillChips = [0, 1, 2, 3].map(function (i) {
-    var cg = S('g', { transform: 'translate(14,' + (50 + i * 26) + ')' }, skillsTile);
-    var r = S('rect', { width: 140, height: 21, rx: 6, fill: COL.deep, stroke: COL.line, 'stroke-width': 1.5 }, cg);
-    var t = S('text', { x: 70, y: 15, 'text-anchor': 'middle', style: 'font-size:11.5px;font-weight:700', fill: COL.text }, cg, skillsLabels[i]);
+    var cg = S('g', { transform: 'translate(12,' + (58 + i * 25) + ')' }, skillsTile);
+    var r = S('rect', { width: 138, height: 21, rx: 6, fill: COL.deep, stroke: COL.line, 'stroke-width': 1.5 }, cg);
+    var t = S('text', { x: 69, y: 15, 'text-anchor': 'middle', style: 'font-size:11.5px;font-weight:700', fill: COL.text }, cg, skillsLabels[i]);
     return { r: r, t: t };
   });
-  var skillsFoot = S('text', { x: 81, y: 160, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, '');
+  var skillsFoot = S('text', { x: 81, y: 176, 'text-anchor': 'middle', class: 'small-t' }, skillsTile, '');
   /* Lien règles communes → cellule isolée : toujours dessiné (pointillés gris), coloré et animé quand la cellule charge ses règles */
-  var skillLink = { line: S('line', { x1: 1018, y1: 196, x2: 1032, y2: 196, stroke: LT.spoke, 'stroke-width': 3, 'stroke-dasharray': '5 5' }, svg),
+  var skillLink = { line: S('line', { x1: MOD.sandbox.p.x + MW * K / 2 + 4, y1: MOD.sandbox.p.y, x2: skillsX, y2: skillsY + 51, stroke: LT.spoke, 'stroke-width': 3, 'stroke-dasharray': '5 5' }, svg),
     dot: S('circle', { r: 4.5, fill: COL.agent, opacity: 0 }, svg) };
 
   var salle = S('g', { class: 'hit', 'data-key': 'estop', transform: 'translate(176,8)' }, cornerL);
+  S('rect', { x: 3, y: 7, width: 154, height: 112, rx: 10, fill: '#c8d1e1', stroke: '#9aa8c0', 'stroke-width': 1.4 }, salle);
   S('rect', { width: 160, height: 112, rx: 12, fill: COL.card, stroke: COL.line, 'stroke-width': 2 }, salle);
+  S('path', { d: 'M12 2 H148', fill: 'none', stroke: '#ffffff', 'stroke-width': 2, opacity: .9, 'stroke-linecap': 'round' }, salle);
   S('text', { x: 80, y: 22, 'text-anchor': 'middle', style: 'font-size:13.5px;font-weight:800', fill: COL.text }, salle, 'Salle de contrôle');
   S('text', { x: 80, y: 38, 'text-anchor': 'middle', class: 'small-t' }, salle, 'RSSI · arrêt d\'urgence');
   var salleGlyph = glyph(salle, 38, 78, 'RSSI');
@@ -650,10 +722,13 @@
   function ease(x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
   function setGlyph(g, state, stopped) {
     var col = state === 'done' ? COL.ok : COL.human;
-    g.c.setAttribute('stroke', col);
-    g.c.setAttribute('fill', state === 'wait' ? LT.waitFill : (state === 'done' ? LT.doneFill : COL.deep));
+    g.head.setAttribute('stroke', col);
+    g.head.setAttribute('fill', state === 'wait' ? LT.waitFill : (state === 'done' ? LT.doneFill : '#fffaf7'));
+    g.shadow.setAttribute('fill', col);
+    g.shadow.setAttribute('opacity', state === 'wait' ? .42 : (state === 'done' ? .32 : .22));
     g.body.setAttribute('fill', col); g.t.setAttribute('fill', col);
-    g.g.setAttribute('class', state === 'wait' && !stopped ? 'pulse' : '');
+    g.body.setAttribute('stroke', col);
+    g.g.setAttribute('class', 'person-figure' + (state === 'wait' && !stopped ? ' pulse' : '') + (state === 'done' ? ' done' : ''));
     g.g.setAttribute('opacity', state === 'idle' ? 0.65 : 1);
   }
   function humanRoles(s) { return s && s.human ? [s.human.role].concat(s.human.also || []) : []; }
@@ -662,7 +737,9 @@
     var r = st.run, s = r ? r.steps[r.idx] : null;
     var stopped = !!st.estop;
     var p = r ? r.params : st.params;
-    belt.setAttribute('stroke-dashoffset', -(st.clock * 26) % 22);
+    var beltOffset = -(st.clock * 26) % 22;
+    belt.setAttribute('stroke-dashoffset', beltOffset);
+    beltTrail.setAttribute('stroke-dashoffset', beltOffset);
 
     var cur = s ? s.st : -1;
     dial.arcs.forEach(function (a, i) {
@@ -683,6 +760,7 @@
       var sp = spokes[m.id];
       sp.line.setAttribute('stroke', on ? mods[m.id].color : LT.spoke);
       sp.line.setAttribute('stroke-width', on ? 3 : 2);
+      sp.line.setAttribute('opacity', on ? 1 : .58);
       var u = ((st.clock * 0.7) % 1);
       sp.dot.setAttribute('opacity', on ? 1 : 0);
       if (on) { sp.dot.setAttribute('cx', sp.x0 + (sp.x1 - sp.x0) * u); sp.dot.setAttribute('cy', sp.y0 + (sp.y1 - sp.y0) * u); }
@@ -706,7 +784,7 @@
       });
       M.frame.setAttribute('stroke', failed ? COL.guard : (li !== undefined ? M.color : COL.line));
       M.frame.setAttribute('stroke-width', active ? 4 : (li !== undefined ? 2.5 : 2));
-      M.g.style.filter = active && !stopped ? 'drop-shadow(0 0 10px ' + (failed ? COL.guard : M.color) + ')' : '';
+      M.g.style.filter = active && !stopped ? 'drop-shadow(0 4px 6px rgba(26,31,43,.25))' : '';
       var par = active && s.par;
       M.prog.setAttribute('width', active ? 180 * prog : 0);
       M.prog.setAttribute('fill', par ? COL.agent : M.color);
@@ -755,7 +833,9 @@
       var pb = r.idx > 0 ? r.steps[r.idx - 1].bud : 0;
       frac = pb + (s.bud - pb) * clamp(r.el / s.d, 0, 1);
     }
-    needle.setAttribute('transform', 'rotate(' + (clamp(frac, 0, 1) * 180).toFixed(1) + ')');
+    var needleAngle = (clamp(frac, 0, 1) * 180).toFixed(1);
+    needle.setAttribute('transform', 'rotate(' + needleAngle + ')');
+    needleShadow.setAttribute('transform', 'rotate(' + needleAngle + ')');
     gaugeVal.textContent = Math.round(clamp(frac, 0, 1) * 100) + ' % · plafond ' + CAPS[p.cap].n + ' · fictif';
     gaugeVal.setAttribute('fill', frac >= 0.9 ? COL.guard : COL.mute);
 
@@ -774,7 +854,7 @@
       P.strike.setAttribute('opacity', state === 'blk' || state === 'ko' ? 1 : 0);
       P.strike.setAttribute('stroke', state === 'ko' ? COL.guard : LT.blkInk);
       var on = state === 'act' && !stopped;
-      L.line.setAttribute('opacity', on ? 0.9 : 0);
+      L.line.setAttribute('opacity', on ? 0.9 : 0.3);
       var u = ((st.clock * 0.9 + L.i * 0.3) % 1);
       var x1 = parseFloat(L.line.getAttribute('x1')), y1 = parseFloat(L.line.getAttribute('y1')), x2 = parseFloat(L.line.getAttribute('x2')), y2 = parseFloat(L.line.getAttribute('y2'));
       L.dot.setAttribute('opacity', on ? 1 : 0);
@@ -787,9 +867,9 @@
     var loaded = r && lastOf.sandbox !== undefined;
     skillLink.line.setAttribute('stroke', loaded ? COL.agent : LT.spoke);
     skillLink.line.setAttribute('stroke-width', skillsOn ? 4 : 3);
-    var lx1 = parseFloat(skillLink.line.getAttribute('x1')), lx2 = parseFloat(skillLink.line.getAttribute('x2')), lu = (st.clock * 0.9) % 1;
+    var lx1 = parseFloat(skillLink.line.getAttribute('x1')), lx2 = parseFloat(skillLink.line.getAttribute('x2')), ly1 = parseFloat(skillLink.line.getAttribute('y1')), ly2 = parseFloat(skillLink.line.getAttribute('y2')), lu = (st.clock * 0.9) % 1;
     skillLink.dot.setAttribute('opacity', skillsOn ? 1 : 0);
-    skillLink.dot.setAttribute('cx', lx2 + (lx1 - lx2) * lu); skillLink.dot.setAttribute('cy', 196);
+    skillLink.dot.setAttribute('cx', lx2 + (lx1 - lx2) * lu); skillLink.dot.setAttribute('cy', ly2 + (ly1 - ly2) * lu);
     skillChips.forEach(function (c, i) {
       if (i === 3) c.t.textContent = stack.skills.join(' · ');
       var pulse = skillsOn && Math.floor(st.clock * 1.4) % 4 === i;
@@ -1020,9 +1100,9 @@
   /* ---------- Détail d'un composant ---------- */
   var INFO = {
     orchestre: { t: 'Orchestrateur déterministe', w: 'Machine à états unique : Cadrage, Contrôle d\'entrée, Planification, Prêt à lancer, Lancé, Exécution, Contrôle de sortie, Revue, Fusionné. Mêmes entrées, mêmes états, mêmes contrôles, mêmes outils : le workflow est déterministe, pas la sortie des modèles. Chaque transition a une garde explicite (onglet Orchestration).', h: 'Il sollicite un humain au plan, au go, à la revue et à l\'escalade. Il n\'étend jamais ses propres droits.', k: 'Workflow durable (candidat : Temporal), snapshot immuable du run, journal rejouable, budget de première classe (invariants 1, 4, 7, 10).', usine: 0, tech: 4 },
-    portail: { t: 'Portail de dépôt', w: 'Le PO choisit les tickets à embarquer, le designer dépose les maquettes. Le dossier est enregistré puis figé.', h: 'Product Owner (tickets), UX/UI designer (maquettes).', k: 'Portail web, registre de projets et de droits propre à PHARE, connecteurs tickets et maquettes derrière interface.', usine: 2, tech: 0 },
-    entree: { t: 'Contrôle d\'entrée', w: 'Avant tout calcul coûteux : complétude, détection d\'injection dans les tickets et maquettes, contrôle déterministe des données personnelles, classification C0 à C3 et vérification qu\'un modèle est autorisé. Un dossier refusé revient avec son motif.', h: 'Aucune validation humaine : le PO ou le designer corrige et redépose.', k: 'Règles en code et classifieurs en services séparés, fail-closed. Le contenu externe est une donnée : il ne confère aucune autorité (invariant 2).', usine: 12, tech: 1 },
-    plan: { t: 'Planification et go', w: 'L\'usine produit seule le plan et les intentions de test, validés par des règles déterministes. Le chef de projet lit le plan chiffré et signe le go : c\'est le seul acte humain. Le run est lié à un dossier figé immuable.', h: 'Chef de projet : go signé, jamais approbateur de la MR. Le PO ne valide pas le plan ; un validateur d\'intentions reste possible en option par projet (ADR 0006).', k: 'Plan-then-execute, snapshot scellé (backlog, maquettes, plan, classe, SHA, versions), budget estimé.', usine: 22, tech: 2 },
+    portail: { t: 'Portail de dépôt', w: 'Le PO choisit les tickets à embarquer, le Designer UX dépose la maquette Figma, le parcours utilisateur et les personae. Le dossier est enregistré puis figé.', h: 'Product Owner (tickets), Designer UX (livrables UX).', k: 'Portail web, registre de projets et de droits propre à PHARE, connecteurs tickets et livrables UX derrière interface.', usine: 2, tech: 0 },
+    entree: { t: 'Contrôle d\'entrée', w: 'Avant tout calcul coûteux : complétude, détection d\'injection dans les tickets et livrables UX, contrôle déterministe des données personnelles, classification C0 à C3 et vérification qu\'un modèle est autorisé. Un dossier refusé revient avec son motif.', h: 'Aucune validation humaine : le PO ou le designer corrige et redépose.', k: 'Règles en code et classifieurs en services séparés, fail-closed. Le contenu externe est une donnée : il ne confère aucune autorité (invariant 2).', usine: 12, tech: 1 },
+    plan: { t: 'Planification et go', w: 'L\'usine produit seule le plan et les intentions de test, validés par des règles déterministes. Le chef de projet lit le plan chiffré et signe le go : c\'est le seul acte humain. Le run est lié à un dossier figé immuable.', h: 'Chef de projet : go signé, jamais approbateur de la MR. Le PO ne valide pas le plan ; un validateur d\'intentions reste possible en option par projet (ADR 0006).', k: 'Plan-then-execute, snapshot scellé (backlog, livrables UX, plan, classe, SHA, versions), budget estimé.', usine: 22, tech: 2 },
     sandbox: { t: 'Cellule isolée et agents', w: 'Trois rôles d\'agents : auteur des tests, implémenteur, relecteur consultatif. Tests gelés avant l\'implémentation, aucun secret longue durée, sortie réseau en liste blanche, écriture vers la forge uniquement par l\'orchestrateur via un patch. Les rôles peuvent utiliser des modèles différents, en parallèle.', h: 'Personne n\'intervient ; le RSSI garde l\'arrêt d\'urgence.', k: 'Isolation N2 minimum, N3 pour C3 (Kubernetes), boucle d\'agent interne derrière AgentRunner, modèles via LlmProvider, skills selon la pile.', usine: 50, tech: 5 },
     skills: { t: 'Service commun de skills', w: 'Service commun d\'entreprise, catalogue signé, versionné et revu : socle d\'authentification OIDC / SAML / LDAPS, skills IAG (IA générative), design system, skills de pile par langage. Un projet demande des skills ; l\'orchestrateur résout et épingle les versions. Changer de langage change les skills de pile, pas l\'orchestration ni les gardes.', h: 'Des experts rédigent et relisent les skills ; propriétaire du service commun à nommer.', k: 'Frontière de confiance (signature, revue, versionnage), consommée par interface (ADR 0006) ; une pile hors gabarit du MVP exige sa qualification (illustratif ici).', usine: 50, tech: 6 },
     sortie: { t: 'Contrôle de sortie', w: 'Contrôle indépendant du générateur : tests gelés, mutation, analyse statique, secrets, politique de diff. Un échec déclenche une autocorrection bornée, sinon escalade.', h: 'Aucun : tout est consigné dans le dossier de preuves.', k: 'Gate indépendant (invariant 3), dossier de preuves attaché à la MR.', usine: 66, tech: 8 },

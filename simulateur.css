@@ -104,6 +104,16 @@ code { background: var(--line2); padding: 1px 5px; border-radius: 4px; font-size
 .pill-t { font-size: 10px; font-weight: 800; }
 .pulse { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
+.person-figure { cursor: help; outline: none; }
+.person-figure .person-head, .person-figure .person-body, .person-figure .person-shadow { transition: opacity .16s ease, stroke-width .16s ease; }
+.person-figure:hover .person-head, .person-figure:focus .person-head { stroke-width: 3.2; }
+.person-figure:hover .person-shadow, .person-figure:focus .person-shadow { opacity: .5 !important; }
+.person-figure:focus .person-head { stroke: var(--system); }
+.role-tooltip { position: absolute; z-index: 12; width: 236px; transform: translate(-50%, -100%); padding: 9px 11px; background: #1f293b; color: #fff; border: 1px solid #596883; border-radius: 8px; box-shadow: 0 7px 18px rgba(20,28,43,.28); font-size: 12px; line-height: 1.32; pointer-events: none; }
+.role-tooltip::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: #1f293b; border-right: 1px solid #596883; border-bottom: 1px solid #596883; transform: translateX(-50%) rotate(45deg); }
+.role-tooltip b, .role-tooltip span { display: block; }
+.role-tooltip b { margin-bottom: 2px; font-size: 12.5px; }
+.role-tooltip span { color: #d9e2f2; }
 @media (prefers-reduced-motion: reduce) { .pulse, .lamp.stop { animation: none; } }
 
 /* Petit écran : le panneau passe sous la scène */
